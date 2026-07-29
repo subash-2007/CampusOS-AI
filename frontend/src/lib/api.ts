@@ -46,19 +46,8 @@ export const api = {
   },
 
   async getMe(): Promise<UserProfile> {
-    try {
-      const res = await apiClient.get('/auth/me');
-      return res.data;
-    } catch (e) {
-      return {
-        id: "demo-user-123",
-        name: "Demo Student",
-        email: "demo@campusos.ai",
-        target_role: "Full Stack Software Engineer",
-        experience: "Entry Level / Student",
-        created_at: new Date().toISOString()
-      };
-    }
+    const res = await apiClient.get('/auth/me');
+    return res.data;
   },
 
   // Multi-Agent Analysis Pipeline

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -52,6 +54,7 @@ const AGENT_PROGRESS_LIST = [
 ];
 
 export default function DashboardOverview() {
+  const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -68,15 +71,20 @@ export default function DashboardOverview() {
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.getMe(), api.getLatestReport()]).then(([u, rep]) => {
-      setUser(u);
-      if (u) {
-        setTargetRoleInput(u.target_role || 'Full Stack Software Engineer');
+    Promise.all([
+      api.getMe().catch(() => null),
+      api.getLatestReport().catch(() => null)
+    ]).then(([userData, reportData]) => {
+      if (!userData) {
+        router.push('/login');
+        return;
       }
-      setReport(rep);
+      setUser(userData);
+      setTargetRoleInput(userData.target_role || '');
+      setReport(reportData);
       setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+    });
+  }, [router]);
 
   const handleStartAnalysis = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +92,6 @@ export default function DashboardOverview() {
     setCompletedAgents([]);
     setActiveAgentIndex(0);
 
-    // Simulate step-by-step progress checkmarks
     const interval = setInterval(() => {
       setActiveAgentIndex((prev) => {
         if (prev < AGENT_PROGRESS_LIST.length - 1) {
@@ -94,7 +101,7 @@ export default function DashboardOverview() {
         clearInterval(interval);
         return prev;
       });
-    }, 800);
+    }, 700);
 
     try {
       let uploadedResumeId = "";
@@ -108,15 +115,15 @@ export default function DashboardOverview() {
 
       let uploadedJobId = "";
       if (jobDescriptionText) {
-        const jobRes = await api.analyzeJob(jobDescriptionText, companyNameInput || 'Target Enterprise', targetRoleInput || 'Software Engineer');
+        const jobRes = await api.analyzeJob(jobDescriptionText, companyNameInput || 'Target Enterprise', targetRoleInput || user?.target_role || 'Software Engineer');
         uploadedJobId = jobRes.job_id;
       }
 
       const finalReport = await api.runAnalysis({
-        user_id: user?.id || 'demo-user-123',
+        user_id: user?.id,
         resume_id: uploadedResumeId,
         job_id: uploadedJobId,
-        target_role: targetRoleInput || 'Software Engineer',
+        target_role: targetRoleInput || user?.target_role || 'Software Engineer',
         company_name: companyNameInput || 'Target Enterprise'
       });
 
@@ -139,29 +146,38 @@ export default function DashboardOverview() {
     setExpandedAgent(expandedAgent === agentId ? null : agentId);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-sm text-purple-400 gap-2">
+        <RefreshCw className="w-5 h-5 animate-spin text-cyanAccent" />
+        <span>Loading Authenticated User Profile...</span>
+      </div>
+    );
+  }
+
   const agents = report?.agents || {};
-  const readinessScore = report?.readiness_score || report?.overall_readiness_score || 82;
-  const atsScore = report?.ats_score || agents?.ats_optimization?.ats_score || agents?.ats_optimization?.match_score || 78;
-  const skillScore = report?.skill_score || agents?.skill_gap?.overall_readiness_pct || 75;
-  const portfolioScore = report?.portfolio_score || agents?.portfolio?.portfolio_score || 88;
-  const hiringProb = report?.hiring_probability || "High (85%+ Probability)";
+  const readinessScore = report?.readiness_score;
+  const atsScore = report?.ats_score || agents?.ats_optimization?.ats_score || agents?.ats_optimization?.match_score;
+  const skillScore = report?.skill_score || agents?.skill_gap?.overall_readiness_pct;
+  const portfolioScore = report?.portfolio_score || agents?.portfolio?.portfolio_score;
+  const hiringProb = report?.hiring_probability;
 
   return (
     <div className="space-y-8">
-      {/* Welcome Banner */}
+      {/* Welcome Banner - Authentic Logged In User Profile */}
       <div className="relative overflow-hidden rounded-3xl p-8 bg-gradient-to-r from-purple-950/60 via-slate-900 to-slate-950 border border-purple-500/30 shadow-glow-purple">
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="max-w-xl">
             <Badge variant="purple" className="mb-3">
               <Sparkles className="w-3.5 h-3.5 mr-1 text-cyanAccent inline" />
-              14 Autonomous AI Agents Standing By
+              14 Autonomous AI Agents Active
             </Badge>
             <h1 className="text-3xl font-extrabold text-white tracking-tight">
-              Welcome back, <span className="text-gradient">{user?.name || user?.full_name || 'Alex'}</span>
+              Welcome back, <span className="text-gradient">{user?.name || user?.full_name}</span>
             </h1>
             <p className="text-slate-300 text-sm mt-2 leading-relaxed">
-              Target Role: <strong className="text-white">{user?.target_role || targetRoleInput || 'Software Engineer'}</strong> | Experience: <strong className="text-cyan-300">{user?.experience || 'Entry-Level'}</strong>
+              Target Role: <strong className="text-white">{user?.target_role}</strong> | Experience: <strong className="text-cyan-300">{user?.experience}</strong>
             </p>
           </div>
 
@@ -181,7 +197,7 @@ export default function DashboardOverview() {
             <span>AI Career Copilot Analysis Hub</span>
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Upload your Resume and paste your target Job Description. All 14 AI Agents will analyze your data dynamically using AI APIs.
+            Upload your Resume and paste your target Job Description. The Supervisor Agent will process your input dynamically across all 14 AI Agents.
           </p>
         </div>
 
@@ -220,14 +236,14 @@ export default function DashboardOverview() {
                   type="text"
                   value={targetRoleInput}
                   onChange={(e) => setTargetRoleInput(e.target.value)}
-                  placeholder="Target Role (e.g. Software Engineer)"
+                  placeholder="Target Role (e.g. Full Stack Developer)"
                   className="w-full glass-input rounded-xl p-2.5 text-xs"
                 />
                 <input
                   type="text"
                   value={companyNameInput}
                   onChange={(e) => setCompanyNameInput(e.target.value)}
-                  placeholder="Company Name (e.g. Google)"
+                  placeholder="Company Name (e.g. Zoho)"
                   className="w-full glass-input rounded-xl p-2.5 text-xs"
                 />
               </div>
@@ -249,7 +265,7 @@ export default function DashboardOverview() {
             disabled={runningAnalysis}
             icon={runningAnalysis ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-5 h-5" />}
           >
-            {runningAnalysis ? 'Supervisor Agent Orchestrating 14 AI Agents...' : 'Start 14-Agent AI Analysis'}
+            {runningAnalysis ? 'Supervisor Agent Processing 14 AI Agents...' : 'Start 14-Agent AI Analysis'}
           </Button>
         </form>
       </Card>
@@ -294,570 +310,572 @@ export default function DashboardOverview() {
         </Card>
       )}
 
-      {/* Top Stat Cards from MongoDB */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card hoverEffect className="border-purple-500/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-400">Career Readiness Score</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
-              <Award className="w-4 h-4" />
+      {/* Dynamic Stat Cards - Pure MongoDB Values */}
+      {report ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card hoverEffect className="border-purple-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-slate-400">Career Readiness Score</span>
+              <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
+                <Award className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-extrabold text-white">{readinessScore}</span>
-            <span className="text-xs font-semibold text-emerald-400">/ 100</span>
-          </div>
-          <Progress value={readinessScore} color="purple" className="mb-2" />
-          <p className="text-[11px] text-slate-400">Aggregated by Supervisor Agent</p>
-        </Card>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-3xl font-extrabold text-white">{readinessScore ?? '--'}</span>
+              <span className="text-xs font-semibold text-emerald-400">/ 100</span>
+            </div>
+            <Progress value={readinessScore || 0} color="purple" className="mb-2" />
+            <p className="text-[11px] text-slate-400">Dynamically generated for {user?.name}</p>
+          </Card>
 
-        <Card hoverEffect className="border-cyan-500/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-400">ATS Semantic Match</span>
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
-              <CheckCircle2 className="w-4 h-4" />
+          <Card hoverEffect className="border-cyan-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-slate-400">ATS Semantic Match</span>
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-extrabold text-white">{atsScore}%</span>
-            <span className="text-xs font-semibold text-cyan-400">AI Semantic Match</span>
-          </div>
-          <Progress value={atsScore} color="cyan" className="mb-2" />
-          <p className="text-[11px] text-slate-400">Contextual JD alignment</p>
-        </Card>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-3xl font-extrabold text-white">{atsScore != null ? `${atsScore}%` : '--'}</span>
+              <span className="text-xs font-semibold text-cyan-400">AI Match</span>
+            </div>
+            <Progress value={atsScore || 0} color="cyan" className="mb-2" />
+            <p className="text-[11px] text-slate-400">Contextual JD alignment</p>
+          </Card>
 
-        <Card hoverEffect className="border-emerald-500/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-400">Skill Readiness</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-              <Zap className="w-4 h-4" />
+          <Card hoverEffect className="border-emerald-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-slate-400">Skill Readiness</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                <Zap className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-3xl font-extrabold text-white">{skillScore}%</span>
-            <span className="text-xs font-semibold text-emerald-400">Skill Competency</span>
-          </div>
-          <Progress value={skillScore} color="emerald" className="mb-2" />
-          <p className="text-[11px] text-slate-400">Prioritized gaps identified</p>
-        </Card>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-3xl font-extrabold text-white">{skillScore != null ? `${skillScore}%` : '--'}</span>
+              <span className="text-xs font-semibold text-emerald-400">Competency</span>
+            </div>
+            <Progress value={skillScore || 0} color="emerald" className="mb-2" />
+            <p className="text-[11px] text-slate-400">Prioritized gaps identified</p>
+          </Card>
 
-        <Card hoverEffect className="border-amber-500/30">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-400">Hiring Probability</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
-              <TrendingUp className="w-4 h-4" />
+          <Card hoverEffect className="border-amber-500/30">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-slate-400">Hiring Probability</span>
+              <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
+                <TrendingUp className="w-4 h-4" />
+              </div>
             </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-lg font-bold text-white">{hiringProb}</span>
-          </div>
-          <Progress value={readinessScore} color="amber" className="mb-2" />
-          <p className="text-[11px] text-slate-400">Based on candidate evaluation</p>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-lg font-bold text-white">{hiringProb || 'Pending Analysis'}</span>
+            </div>
+            <Progress value={readinessScore || 0} color="amber" className="mb-2" />
+            <p className="text-[11px] text-slate-400">Based on 14-agent audit</p>
+          </Card>
+        </div>
+      ) : (
+        <Card className="p-8 text-center border-dashed border-slate-800 space-y-3 bg-slate-900/40">
+          <Sparkles className="w-8 h-8 text-purple-400 mx-auto" />
+          <h3 className="text-base font-bold text-white">No Analysis Report Generated Yet</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            Upload your resume and paste your target Job Description above, then click <strong>"Start 14-Agent AI Analysis"</strong> to generate your dynamic scores.
+          </p>
         </Card>
-      </div>
+      )}
 
       {/* Complete 14 AI Agent Output Accordions */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-            <Layers className="w-5 h-5 text-purple-400" />
-            <span>Complete 14 AI Agent Dynamic Outputs (MongoDB)</span>
-          </h2>
-          <Badge variant="cyan">Click any agent to expand details</Badge>
-        </div>
+      {report && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+              <Layers className="w-5 h-5 text-purple-400" />
+              <span>Complete 14 AI Agent Outputs (MongoDB)</span>
+            </h2>
+            <Badge variant="cyan">Click any agent to expand details</Badge>
+          </div>
 
-        <div className="grid grid-cols-1 gap-4">
-          {/* Agent 1: Resume Intelligence */}
-          <Card className="border-purple-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('resume')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">1. Resume Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Resume score, skills extracted, strengths & weaknesses</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="purple">{agents?.resume_intelligence?.resume_score || agents?.resume_intelligence?.overall_score || 85}/100 Score</Badge>
-                {expandedAgent === 'resume' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'resume' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
-                <div>
-                  <span className="font-bold text-purple-300 block mb-1">Extracted Technical & Soft Skills</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(agents?.resume_intelligence?.extracted_skills || ["Python", "FastAPI", "React", "TypeScript", "SQL"]).map((sk: string, idx: number) => (
-                      <Badge key={idx} variant="purple">{sk}</Badge>
-                    ))}
+          <div className="grid grid-cols-1 gap-4">
+            {/* Agent 1: Resume Intelligence */}
+            <Card className="border-purple-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('resume')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                    <FileText className="w-5 h-5" />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                    <span className="font-bold text-emerald-400 block mb-1">Strengths</span>
-                    <ul className="list-disc pl-4 text-slate-300 space-y-1">
-                      {(agents?.resume_intelligence?.strengths || ["Strong technical skill listing", "Clean formatting"]).map((s: string, idx: number) => <li key={idx}>{s}</li>)}
-                    </ul>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                    <span className="font-bold text-amber-400 block mb-1">Weaknesses & Gaps</span>
-                    <ul className="list-disc pl-4 text-slate-300 space-y-1">
-                      {(agents?.resume_intelligence?.weaknesses || ["Add quantitative metrics", "Expand bullet impact"]).map((w: string, idx: number) => <li key={idx}>{w}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 2: ATS Optimization */}
-          <Card className="border-cyan-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('ats')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">2. ATS Optimization Agent</h3>
-                  <p className="text-xs text-slate-400">AI semantic match %, matched keywords, missing keywords & bullet suggestions</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="cyan">{atsScore}% Semantic Match</Badge>
-                {expandedAgent === 'ats' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'ats' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                    <span className="font-bold text-emerald-400 block mb-1">Matched Keywords & Concepts</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {(agents?.ats_optimization?.matched_keywords || ["Python", "FastAPI", "React", "TypeScript"]).map((k: string, idx: number) => (
-                        <Badge key={idx} variant="emerald">{k}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                    <span className="font-bold text-rose-400 block mb-1">Missing Target Keywords</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {(agents?.ats_optimization?.missing_keywords || ["AWS", "Docker", "Redis"]).map((k: string, idx: number) => (
-                        <Badge key={idx} variant="purple">{k}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
-                  <span className="font-bold text-cyan-300 block mb-1">AI Bullet Point Rewrites & Suggestions</span>
-                  <ul className="list-disc pl-4 text-slate-300 space-y-1">
-                    {(agents?.ats_optimization?.suggestions || ["Incorporate missing keywords into experience section", "Quantify bullet metrics with percentages"]).map((sug: string, sIdx: number) => (
-                      <li key={sIdx}>{sug}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 3: Job Intelligence */}
-          <Card className="border-emerald-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('job')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <Briefcase className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">3. Job Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Role expectations & required technology stacks</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="emerald">Job Deconstructed</Badge>
-                {expandedAgent === 'job' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'job' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs text-slate-300">
-                <p><strong className="text-emerald-300">Target Role & Seniority:</strong> {agents?.job_intelligence?.target_role || targetRoleInput || 'Software Engineer'} ({agents?.job_intelligence?.seniority_level || 'Mid Level'})</p>
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-emerald-400 block mb-1">Role Expectations & Responsibilities</span>
-                  <ul className="list-disc pl-4 text-slate-300 space-y-1">
-                    {(agents?.job_intelligence?.role_expectations || ["Architect and maintain scalable APIs", "Collaborate across cross-functional engineering teams"]).map((exp: string, idx: number) => (
-                      <li key={idx}>{exp}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-cyan-300 block mb-1">Required Technologies & Tech Stack</span>
-                  <div className="flex flex-wrap gap-1">
-                    {(agents?.job_intelligence?.required_technologies || ["Python", "FastAPI", "React", "SQL"]).map((tech: string, idx: number) => (
-                      <Badge key={idx} variant="cyan">{tech}</Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 4: Skill Gap Agent */}
-          <Card className="border-amber-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('skillgap')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <Zap className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">4. Skill Gap Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Missing technical skills, priority level & 4-week learning plan</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="amber">{skillScore}% Competency</Badge>
-                {expandedAgent === 'skillgap' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'skillgap' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
-                <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800">
                   <div>
-                    <span className="font-bold text-amber-300 block">Priority Status</span>
-                    <span className="text-slate-400">{agents?.skill_gap?.priority || 'High Priority'}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {(agents?.skill_gap?.missing_skills || ["AWS", "Docker", "Redis"]).map((sk: string, idx: number) => (
-                      <Badge key={idx} variant="amber">{sk}</Badge>
-                    ))}
+                    <h3 className="text-sm font-bold text-white">1. Resume Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Resume score, skills extracted, strengths & weaknesses</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="purple">{agents?.resume_intelligence?.resume_score || agents?.resume_intelligence?.overall_score}/100 Score</Badge>
+                  {expandedAgent === 'resume' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'resume' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
+                  <div>
+                    <span className="font-bold text-purple-300 block mb-1">Extracted Technical & Soft Skills</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(agents?.resume_intelligence?.extracted_skills || []).map((sk: string, idx: number) => (
+                        <Badge key={idx} variant="purple">{sk}</Badge>
+                      ))}
+                    </div>
+                  </div>
 
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-amber-400 block mb-2">4-Week Upskilling Roadmap</span>
-                  <div className="space-y-1.5">
-                    {(agents?.skill_gap?.learning_plan || [
-                      "Week 1: Fundamentals lab",
-                      "Week 2: Microservice integration",
-                      "Week 3: Query optimization",
-                      "Week 4: Production deployment"
-                    ]).map((step: string, sIdx: number) => (
-                      <p key={sIdx} className="text-slate-300">{step}</p>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                      <span className="font-bold text-emerald-400 block mb-1">Strengths</span>
+                      <ul className="list-disc pl-4 text-slate-300 space-y-1">
+                        {(agents?.resume_intelligence?.strengths || []).map((s: string, idx: number) => <li key={idx}>{s}</li>)}
+                      </ul>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                      <span className="font-bold text-amber-400 block mb-1">Weaknesses & Gaps</span>
+                      <ul className="list-disc pl-4 text-slate-300 space-y-1">
+                        {(agents?.resume_intelligence?.weaknesses || []).map((w: string, idx: number) => <li key={idx}>{w}</li>)}
+                      </ul>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </Card>
+              )}
+            </Card>
 
-          {/* Agent 5: Interview Intelligence */}
-          <Card className="border-purple-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('interview')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                  <MessageSquare className="w-5 h-5" />
+            {/* Agent 2: ATS Optimization */}
+            <Card className="border-cyan-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('ats')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">2. ATS Optimization Agent</h3>
+                    <p className="text-xs text-slate-400">AI semantic match %, matched keywords, missing keywords & bullet suggestions</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">5. Interview Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Technical questions, HR behavioral questions & STAR sample answers</p>
+                <div className="flex items-center gap-3">
+                  <Badge variant="cyan">{atsScore}% Semantic Match</Badge>
+                  {expandedAgent === 'ats' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="purple">STAR Q&A Generated</Badge>
-                {expandedAgent === 'interview' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'interview' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
-                <div>
-                  <span className="font-bold text-cyan-300 block mb-2">Technical Interview Questions & Answers</span>
-                  <div className="space-y-3">
-                    {(agents?.interview?.technical_questions || [
-                      { question: "How do you handle state management in React?", sample_answer: "I use Context API and custom hooks for clean component separation." },
-                      { question: "Explain asynchronous execution in FastAPI.", sample_answer: "FastAPI uses ASGI with Python asyncio to handle non-blocking HTTP requests." }
-                    ]).map((q: any, qIdx: number) => (
-                      <div key={qIdx} className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
-                        <span className="font-bold text-white block">Q{qIdx + 1}: {q.question || q}</span>
-                        <p className="text-purple-300 text-[11px] leading-relaxed"><strong className="text-purple-200">Sample STAR Answer:</strong> {q.sample_answer || 'Use STAR framework to describe Situation, Task, Action, and Result.'}</p>
+              {expandedAgent === 'ats' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                      <span className="font-bold text-emerald-400 block mb-1">Matched Keywords & Concepts</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(agents?.ats_optimization?.matched_keywords || []).map((k: string, idx: number) => (
+                          <Badge key={idx} variant="emerald">{k}</Badge>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="font-bold text-emerald-300 block mb-2">HR & Behavioral Questions</span>
-                  <div className="space-y-3">
-                    {(agents?.interview?.hr_questions || [
-                      { question: "Tell me about a time you delivered under tight deadlines.", sample_answer: "Prioritized MVP features and automated test coverage." }
-                    ]).map((hq: any, hIdx: number) => (
-                      <div key={hIdx} className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
-                        <span className="font-bold text-white block">HR Q{hIdx + 1}: {hq.question || hq}</span>
-                        <p className="text-emerald-300 text-[11px] leading-relaxed"><strong className="text-emerald-200">Sample STAR Answer:</strong> {hq.sample_answer || 'Emphasize team collaboration and outcome.'}</p>
+                    </div>
+                    <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                      <span className="font-bold text-rose-400 block mb-1">Missing Target Keywords</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(agents?.ats_optimization?.missing_keywords || []).map((k: string, idx: number) => (
+                          <Badge key={idx} variant="purple">{k}</Badge>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
+                    <span className="font-bold text-cyan-300 block mb-1">AI Bullet Point Rewrites & Suggestions</span>
+                    <ul className="list-disc pl-4 text-slate-300 space-y-1">
+                      {(agents?.ats_optimization?.suggestions || []).map((sug: string, sIdx: number) => (
+                        <li key={sIdx}>{sug}</li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
-              </div>
-            )}
-          </Card>
+              )}
+            </Card>
 
-          {/* Agent 6: Career Roadmap */}
-          <Card className="border-cyan-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('roadmap')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <Compass className="w-5 h-5" />
+            {/* Agent 3: Job Intelligence */}
+            <Card className="border-emerald-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('job')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <Briefcase className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">3. Job Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Role expectations & required technology stacks</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">6. Career Roadmap Agent</h3>
-                  <p className="text-xs text-slate-400">30-60-90 day milestone strategic execution plan</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="cyan">30-60-90 Plan</Badge>
-                {expandedAgent === 'roadmap' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'roadmap' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-purple-400 block mb-1">Days 1-30: Skill Foundation</span>
-                  <p className="text-slate-300">{agents?.career_roadmap?.plan_30_days || 'Master core missing tech skills and optimize resume ATS keywords.'}</p>
-                </div>
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-cyan-400 block mb-1">Days 31-60: Production Build</span>
-                  <p className="text-slate-300">{agents?.career_roadmap?.plan_60_days || 'Build and deploy end-to-end cloud microservice application.'}</p>
-                </div>
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-emerald-400 block mb-1">Days 61-90: Interview Outreach</span>
-                  <p className="text-slate-300">{agents?.career_roadmap?.plan_90_days || 'Execute recruiter cold messaging and complete technical interview loops.'}</p>
+                <div className="flex items-center gap-3">
+                  <Badge variant="emerald">Job Deconstructed</Badge>
+                  {expandedAgent === 'job' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </div>
               </div>
-            )}
-          </Card>
+              {expandedAgent === 'job' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs text-slate-300">
+                  <p><strong className="text-emerald-300">Target Role & Seniority:</strong> {agents?.job_intelligence?.target_role || user?.target_role} ({agents?.job_intelligence?.seniority_level})</p>
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-emerald-400 block mb-1">Role Expectations & Responsibilities</span>
+                    <ul className="list-disc pl-4 text-slate-300 space-y-1">
+                      {(agents?.job_intelligence?.role_expectations || []).map((exp: string, idx: number) => (
+                        <li key={idx}>{exp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-cyan-300 block mb-1">Required Technologies & Tech Stack</span>
+                    <div className="flex flex-wrap gap-1">
+                      {(agents?.job_intelligence?.required_technologies || []).map((tech: string, idx: number) => (
+                        <Badge key={idx} variant="cyan">{tech}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
 
-          {/* Agent 7: Portfolio Agent */}
-          <Card className="border-emerald-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('portfolio')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <FolderGit2 className="w-5 h-5" />
+            {/* Agent 4: Skill Gap Agent */}
+            <Card className="border-amber-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('skillgap')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">4. Skill Gap Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Missing technical skills, priority level & 4-week learning plan</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">7. Portfolio Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Project evaluation & GitHub README presentation</p>
+                <div className="flex items-center gap-3">
+                  <Badge variant="amber">{skillScore}% Competency</Badge>
+                  {expandedAgent === 'skillgap' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="emerald">{portfolioScore}% Score</Badge>
-                {expandedAgent === 'portfolio' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+              {expandedAgent === 'skillgap' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
+                  <div className="flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <div>
+                      <span className="font-bold text-amber-300 block">Priority Status</span>
+                      <span className="text-slate-400">{agents?.skill_gap?.priority}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {(agents?.skill_gap?.missing_skills || []).map((sk: string, idx: number) => (
+                        <Badge key={idx} variant="amber">{sk}</Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-amber-400 block mb-2">4-Week Upskilling Roadmap</span>
+                    <div className="space-y-1.5">
+                      {(agents?.skill_gap?.learning_plan || []).map((step: string, sIdx: number) => (
+                        <p key={sIdx} className="text-slate-300">{step}</p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 5: Interview Intelligence */}
+            <Card className="border-purple-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('interview')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">5. Interview Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Technical questions, HR behavioral questions & STAR sample answers</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="purple">STAR Q&A Generated</Badge>
+                  {expandedAgent === 'interview' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
               </div>
-            </div>
-            {expandedAgent === 'portfolio' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs text-slate-300">
-                <p><strong className="text-emerald-300">Project Evaluation:</strong> {agents?.portfolio?.project_evaluation || 'Candidate projects demonstrate strong technical foundations.'}</p>
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-emerald-400 block mb-1">README & Portfolio Tips</span>
+              {expandedAgent === 'interview' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-4 text-xs">
+                  <div>
+                    <span className="font-bold text-cyan-300 block mb-2">Technical Interview Questions & Answers</span>
+                    <div className="space-y-3">
+                      {(agents?.interview?.technical_questions || []).map((q: any, qIdx: number) => (
+                        <div key={qIdx} className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
+                          <span className="font-bold text-white block">Q{qIdx + 1}: {q.question || q}</span>
+                          <p className="text-purple-300 text-[11px] leading-relaxed"><strong className="text-purple-200">Sample STAR Answer:</strong> {q.sample_answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="font-bold text-emerald-300 block mb-2">HR & Behavioral Questions</span>
+                    <div className="space-y-3">
+                      {(agents?.interview?.hr_questions || []).map((hq: any, hIdx: number) => (
+                        <div key={hIdx} className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1">
+                          <span className="font-bold text-white block">HR Q{hIdx + 1}: {hq.question || hq}</span>
+                          <p className="text-emerald-300 text-[11px] leading-relaxed"><strong className="text-emerald-200">Sample STAR Answer:</strong> {hq.sample_answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 6: Career Roadmap */}
+            <Card className="border-cyan-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('roadmap')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                    <Compass className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">6. Career Roadmap Agent</h3>
+                    <p className="text-xs text-slate-400">30-60-90 day milestone strategic execution plan</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="cyan">30-60-90 Plan</Badge>
+                  {expandedAgent === 'roadmap' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'roadmap' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-purple-400 block mb-1">Days 1-30: Skill Foundation</span>
+                    <p className="text-slate-300">{agents?.career_roadmap?.plan_30_days}</p>
+                  </div>
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-cyan-400 block mb-1">Days 31-60: Production Build</span>
+                    <p className="text-slate-300">{agents?.career_roadmap?.plan_60_days}</p>
+                  </div>
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-emerald-400 block mb-1">Days 61-90: Interview Outreach</span>
+                    <p className="text-slate-300">{agents?.career_roadmap?.plan_90_days}</p>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 7: Portfolio Agent */}
+            <Card className="border-emerald-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('portfolio')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <FolderGit2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">7. Portfolio Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Project evaluation & GitHub README presentation</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="emerald">{portfolioScore}% Score</Badge>
+                  {expandedAgent === 'portfolio' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'portfolio' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs text-slate-300">
+                  <p><strong className="text-emerald-300">Project Evaluation:</strong> {agents?.portfolio?.project_evaluation}</p>
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-emerald-400 block mb-1">README & Portfolio Tips</span>
+                    <ul className="list-disc pl-4 text-slate-300 space-y-1">
+                      {(agents?.portfolio?.readme_suggestions || []).map((sug: string, idx: number) => (
+                        <li key={idx}>{sug}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 8: Communication Agent */}
+            <Card className="border-amber-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('communication')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Send className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">8. Communication Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Recruiter email templates & LinkedIn connection notes</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="amber">Outreach Ready</Badge>
+                  {expandedAgent === 'communication' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'communication' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs">
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-amber-300 block mb-1">Recruiter Cold Email Template</span>
+                    <pre className="font-sans whitespace-pre-wrap text-[11px] text-slate-300">{agents?.communication?.recruiter_email}</pre>
+                  </div>
+                  <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <span className="font-bold text-amber-300 block mb-1">LinkedIn Connection Note</span>
+                    <p className="text-[11px] text-slate-300">{agents?.communication?.linkedin_message}</p>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 9: Company Intelligence */}
+            <Card className="border-purple-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('company')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                    <Building className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">9. Company Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Tavily web research & engineering culture insights</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="purple">Company Analyzed</Badge>
+                  {expandedAgent === 'company' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'company' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
+                  <p><strong className="text-purple-300">Target Enterprise:</strong> {agents?.company_intelligence?.company_name}</p>
+                  <p><strong className="text-purple-300">Company Insights:</strong> {agents?.company_intelligence?.company_insights}</p>
+                  <p><strong className="text-purple-300">Interview Focus:</strong> {agents?.company_intelligence?.interview_focus}</p>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 10: Market Trend Agent */}
+            <Card className="border-cyan-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('market')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">10. Market Trend Intelligence Agent</h3>
+                    <p className="text-xs text-slate-400">Hiring demand, salary benchmarks & tech growth</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="cyan">Trends Active</Badge>
+                  {expandedAgent === 'market' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'market' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
+                  <p><strong className="text-cyan-300">Hiring Demand:</strong> {agents?.market_trend?.hiring_demand}</p>
+                  <p><strong className="text-cyan-300">Industry Salary Benchmark:</strong> {agents?.market_trend?.salary_benchmark}</p>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 11: Document Verification */}
+            <Card className="border-emerald-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('verification')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">11. Document Verification Agent</h3>
+                    <p className="text-xs text-slate-400">Resume format consistency & quality check</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="emerald">Verified</Badge>
+                  {expandedAgent === 'verification' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'verification' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
+                  <p><strong className="text-emerald-300">Status:</strong> {agents?.document_verification?.verification_status}</p>
+                  <p><strong className="text-emerald-300">Timeline Audit:</strong> {agents?.document_verification?.timeline_analysis}</p>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 12: Career Analytics */}
+            <Card className="border-amber-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('analytics')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">12. Career Analytics Agent</h3>
+                    <p className="text-xs text-slate-400">Readiness score & hiring probability calculation</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="amber">{readinessScore}/100 Score</Badge>
+                  {expandedAgent === 'analytics' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'analytics' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
+                  <p><strong className="text-amber-300">Readiness Score:</strong> {readinessScore}/100</p>
+                  <p><strong className="text-amber-300">Hiring Probability:</strong> {hiringProb}</p>
+                </div>
+              )}
+            </Card>
+
+            {/* Agent 13: Memory Agent */}
+            <Card className="border-purple-500/30">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('memory')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">13. Memory & Personalization Agent</h3>
+                    <p className="text-xs text-slate-400">Career history tracking & logged improvements</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="purple">Logged</Badge>
+                  {expandedAgent === 'memory' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {expandedAgent === 'memory' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
+                  <p><strong className="text-purple-300">Career Progression:</strong> {agents?.memory?.career_history}</p>
                   <ul className="list-disc pl-4 text-slate-300 space-y-1">
-                    {(agents?.portfolio?.readme_suggestions || ["Add live deployment URLs", "Include architecture diagrams"]).map((sug: string, idx: number) => (
-                      <li key={idx}>{sug}</li>
+                    {(agents?.memory?.user_improvements || []).map((imp: string, idx: number) => (
+                      <li key={idx}>{imp}</li>
                     ))}
                   </ul>
                 </div>
-              </div>
-            )}
-          </Card>
+              )}
+            </Card>
 
-          {/* Agent 8: Communication Agent */}
-          <Card className="border-amber-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('communication')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <Send className="w-5 h-5" />
+            {/* Agent 14: Supervisor Evaluation */}
+            <Card className="border-cyan-500/30 bg-gradient-to-r from-slate-900 to-purple-950/40">
+              <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('supervisor')}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">14. Supervisor Evaluation Agent</h3>
+                    <p className="text-xs text-slate-400">Master synthesis & final evaluation report</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">8. Communication Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Recruiter email templates & LinkedIn connection notes</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="amber">Outreach Ready</Badge>
-                {expandedAgent === 'communication' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'communication' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs">
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-amber-300 block mb-1">Recruiter Cold Email Template</span>
-                  <pre className="font-sans whitespace-pre-wrap text-[11px] text-slate-300">{agents?.communication?.recruiter_email || 'Hi Hiring Manager, I am applying for the Software Engineer role...'}</pre>
-                </div>
-                <div className="p-3 bg-slate-900 rounded-xl border border-slate-800">
-                  <span className="font-bold text-amber-300 block mb-1">LinkedIn Connection Note</span>
-                  <p className="text-[11px] text-slate-300">{agents?.communication?.linkedin_message || 'Hi, I built a matching full-stack app and would love to connect!'}</p>
+                <div className="flex items-center gap-3">
+                  <Badge variant="cyan">Master Synthesis</Badge>
+                  {expandedAgent === 'supervisor' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                 </div>
               </div>
-            )}
-          </Card>
-
-          {/* Agent 9: Company Intelligence */}
-          <Card className="border-purple-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('company')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                  <Building className="w-5 h-5" />
+              {expandedAgent === 'supervisor' && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs text-slate-300">
+                  <p className="leading-relaxed"><strong className="text-cyan-300">Master Evaluation:</strong> {agents?.supervisor_evaluation?.summary}</p>
+                  <Button variant="primary" size="sm" onClick={handleDownloadPDF} icon={<Send className="w-3.5 h-3.5" />}>
+                    Download Full AI Career Audit PDF
+                  </Button>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">9. Company Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Tavily web research & engineering culture insights</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="purple">Company Analyzed</Badge>
-                {expandedAgent === 'company' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'company' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
-                <p><strong className="text-purple-300">Target Enterprise:</strong> {agents?.company_intelligence?.company_name || companyNameInput || 'Target Enterprise'}</p>
-                <p><strong className="text-purple-300">Company Insights:</strong> {agents?.company_intelligence?.company_insights || 'Focuses on high performance engineering and software quality.'}</p>
-                <p><strong className="text-purple-300">Interview Focus:</strong> {agents?.company_intelligence?.interview_focus || 'System design, algorithm design, and technical depth.'}</p>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 10: Market Trend Agent */}
-          <Card className="border-cyan-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('market')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">10. Market Trend Intelligence Agent</h3>
-                  <p className="text-xs text-slate-400">Hiring demand, salary benchmarks & tech growth</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="cyan">Trends Active</Badge>
-                {expandedAgent === 'market' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'market' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
-                <p><strong className="text-cyan-300">Hiring Demand:</strong> {agents?.market_trend?.hiring_demand || 'High Demand (+18% YoY growth)'}</p>
-                <p><strong className="text-cyan-300">Industry Salary Benchmark:</strong> {agents?.market_trend?.salary_benchmark || '$85,000 - $130,000 / year'}</p>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 11: Document Verification */}
-          <Card className="border-emerald-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('verification')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">11. Document Verification Agent</h3>
-                  <p className="text-xs text-slate-400">Resume format consistency & quality check</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="emerald">Verified</Badge>
-                {expandedAgent === 'verification' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'verification' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
-                <p><strong className="text-emerald-300">Status:</strong> {agents?.document_verification?.verification_status || 'Verified - High Quality'}</p>
-                <p><strong className="text-emerald-300">Timeline Audit:</strong> {agents?.document_verification?.timeline_analysis || 'Chronological dates consistent.'}</p>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 12: Career Analytics */}
-          <Card className="border-amber-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('analytics')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                  <BarChart3 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">12. Career Analytics Agent</h3>
-                  <p className="text-xs text-slate-400">Readiness score & hiring probability calculation</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="amber">{readinessScore}/100 Score</Badge>
-                {expandedAgent === 'analytics' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'analytics' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
-                <p><strong className="text-amber-300">Readiness Score:</strong> {readinessScore}/100</p>
-                <p><strong className="text-amber-300">Hiring Probability:</strong> {hiringProb}</p>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 13: Memory Agent */}
-          <Card className="border-purple-500/30">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('memory')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">13. Memory & Personalization Agent</h3>
-                  <p className="text-xs text-slate-400">Career history tracking & logged improvements</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="purple">Logged</Badge>
-                {expandedAgent === 'memory' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'memory' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-2 text-xs text-slate-300">
-                <p><strong className="text-purple-300">Career Progression:</strong> {agents?.memory?.career_history || 'Tracking milestone improvements across sessions.'}</p>
-                <ul className="list-disc pl-4 text-slate-300 space-y-1">
-                  {(agents?.memory?.user_improvements || ["ATS match score improved", "Saved 4-week learning plan"]).map((imp: string, idx: number) => (
-                    <li key={idx}>{imp}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Card>
-
-          {/* Agent 14: Supervisor Evaluation */}
-          <Card className="border-cyan-500/30 bg-gradient-to-r from-slate-900 to-purple-950/40">
-            <div className="flex items-center justify-between cursor-pointer p-2" onClick={() => toggleExpand('supervisor')}>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white">14. Supervisor Evaluation Agent</h3>
-                  <p className="text-xs text-slate-400">Master synthesis & final evaluation report</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="cyan">Master Synthesis</Badge>
-                {expandedAgent === 'supervisor' ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-              </div>
-            </div>
-            {expandedAgent === 'supervisor' && (
-              <div className="mt-4 pt-4 border-t border-slate-800 space-y-3 text-xs text-slate-300">
-                <p className="leading-relaxed"><strong className="text-cyan-300">Master Evaluation:</strong> Candidate exhibits high technical competency with strong resume impact. Follow the 30-60-90 day career roadmap to bridge minor skill gaps and achieve top ATS match.</p>
-                <Button variant="primary" size="sm" onClick={handleDownloadPDF} icon={<Send className="w-3.5 h-3.5" />}>
-                  Download Full AI Career Audit PDF
-                </Button>
-              </div>
-            )}
-          </Card>
+              )}
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

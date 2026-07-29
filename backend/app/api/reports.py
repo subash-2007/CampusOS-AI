@@ -20,15 +20,6 @@ async def get_latest_report(
 
     reports_col = mongo.get_collection("career_reports")
     report = await reports_col.find_one({"user_id": user_id})
-    
-    if not report:
-        # Generate initial report for user
-        report = await supervisor_agent.run_supervisor_pipeline(
-            user_id=user_id,
-            target_role="Full Stack Software Engineer",
-            db=mongo
-        )
-
     return report
 
 @router.get("/user/{user_id}")
@@ -41,7 +32,7 @@ async def get_user_reports(user_id: str, mongo=Depends(get_mongodb)):
 @router.post("/generate")
 async def generate_full_report(
     resume_text: str = "",
-    target_role: str = "Full Stack Engineer",
+    target_role: str = "Full Stack Software Engineer",
     authorization: Optional[str] = Header(None),
     mongo=Depends(get_mongodb)
 ):
