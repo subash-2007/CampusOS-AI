@@ -58,6 +58,7 @@ export default function DashboardOverview() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [analysisError, setAnalysisError] = useState('');
 
   // Upload / Analysis state
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -69,6 +70,7 @@ export default function DashboardOverview() {
   const [completedAgents, setCompletedAgents] = useState<string[]>([]);
   const [activeAgentIndex, setActiveAgentIndex] = useState(0);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [lastAnalysisId, setLastAnalysisId] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -81,17 +83,36 @@ export default function DashboardOverview() {
       }
       setUser(userData);
       setTargetRoleInput(userData.target_role || '');
-      setReport(reportData);
+      if (reportData) setReport(reportData);
       setLoading(false);
     });
   }, [router]);
 
+  /** Extract plain text from a File object (reads as text for .txt, uses filename for pdf/docx display) */
+  const extractFileText = async (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string || '');
+      reader.onerror = () => resolve('');
+      reader.readAsText(file);
+    });
+  };
+
   const handleStartAnalysis = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAnalysisError('');
+
+    if (!jobDescriptionText.trim() && !resumeText.trim() && !resumeFile) {
+      setAnalysisError('Please upload a resume or enter resume text, and paste a Job Description.');
+      return;
+    }
+
     setRunningAnalysis(true);
     setCompletedAgents([]);
     setActiveAgentIndex(0);
+    setReport(null); // Clear previous results
 
+    // Start animated progress ticker
     const interval = setInterval(() => {
       setActiveAgentIndex((prev) => {
         if (prev < AGENT_PROGRESS_LIST.length - 1) {
@@ -104,35 +125,54 @@ export default function DashboardOverview() {
     }, 700);
 
     try {
-      let uploadedResumeId = "";
-      if (resumeFile || resumeText) {
-        const formData = new FormData();
-        if (resumeFile) formData.append('file', resumeFile);
-        if (resumeText) formData.append('raw_text', resumeText);
-        const resumeRes = await api.uploadResume(formData);
-        uploadedResumeId = resumeRes.resume_id;
+      // Resolve resume text inline — avoids MongoDB ID round-trip failures
+      let inlineResumeText = resumeText.trim();
+      if (!inlineResumeText && resumeFile) {
+        if (resumeFile.type === 'text/plain' || resumeFile.name.endsWith('.txt')) {
+          inlineResumeText = await extractFileText(resumeFile);
+        } else {
+          // For PDF/DOCX — upload to backend first to extract text
+          const formData = new FormData();
+          formData.append('file', resumeFile);
+          try {
+            const resumeRes = await api.analyzeResume(formData);
+            inlineResumeText = resumeRes.extracted_text || '';
+          } catch {
+            // Non-fatal: proceed with empty resume text — agents will still run on JD
+          }
+        }
       }
 
-      let uploadedJobId = "";
-      if (jobDescriptionText) {
-        const jobRes = await api.analyzeJob(jobDescriptionText, companyNameInput || 'Target Enterprise', targetRoleInput || user?.target_role || 'Software Engineer');
-        uploadedJobId = jobRes.job_id;
-      }
-
+      // Run the full 14-agent pipeline with inline text — no ID lookups needed
       const finalReport = await api.runAnalysis({
         user_id: user?.id,
-        resume_id: uploadedResumeId,
-        job_id: uploadedJobId,
+        resume_text: inlineResumeText,
+        job_description_text: jobDescriptionText.trim(),
         target_role: targetRoleInput || user?.target_role || 'Software Engineer',
-        company_name: companyNameInput || 'Target Enterprise'
+        company_name: companyNameInput || 'Target Enterprise',
+        experience_level: user?.experience || 'Student',
+        career_goal: user?.career_goal || `Land a role as ${targetRoleInput || user?.target_role || 'Software Engineer'}`
       });
 
       clearInterval(interval);
-      setCompletedAgents(AGENT_PROGRESS_LIST);
+      setCompletedAgents([...AGENT_PROGRESS_LIST]);
+      setActiveAgentIndex(AGENT_PROGRESS_LIST.length - 1);
+
+      // Store analysis_id for page-refresh fallback
+      if (finalReport?.analysis_id) {
+        setLastAnalysisId(finalReport.analysis_id);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('campusos_last_analysis_id', finalReport.analysis_id);
+        }
+      }
+
+      // ✅ Set report directly from API response — NO page reload
       setReport(finalReport);
-    } catch (e) {
-      console.error(e);
+    } catch (err: any) {
       clearInterval(interval);
+      const msg = err?.response?.data?.detail || err?.message || 'Analysis failed. Please try again.';
+      setAnalysisError(msg);
+      console.error('Analysis error:', err);
     } finally {
       setRunningAnalysis(false);
     }
@@ -200,6 +240,14 @@ export default function DashboardOverview() {
             Upload your Resume and paste your target Job Description. The Supervisor Agent will process your input dynamically across all 14 AI Agents.
           </p>
         </div>
+
+        {/* Analysis Error Banner */}
+        {analysisError && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+            <span className="font-bold text-rose-400 shrink-0">⚠ Error:</span>
+            <span>{analysisError}</span>
+          </div>
+        )}
 
         <form onSubmit={handleStartAnalysis} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

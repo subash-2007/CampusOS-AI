@@ -2,15 +2,12 @@ import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Header
 from typing import Optional
-from app.models.resume import JobDescriptionDB
 from app.database.mongodb import get_mongodb
 from app.core.security import decode_access_token
-from app.nlp import compute_ats_optimization, extract_skills_from_text
+from app.nlp import extract_skills_from_text
 
 router = APIRouter(prefix="/job", tags=["Job Description Management"])
 
-class JobAnalyzeRequest(JobDescriptionDB):
-    pass
 
 @router.post("/analyze")
 async def analyze_job(
@@ -53,11 +50,13 @@ async def analyze_job(
         "created_at": now
     }
 
+
 @router.post("/match")
 async def match_job(
     resume_text: str = "",
     job_description_text: str = "",
     mongo=Depends(get_mongodb)
 ):
+    from app.nlp import compute_ats_optimization
     ats_res = compute_ats_optimization(resume_text, job_description_text)
     return {"ats_optimization": ats_res}

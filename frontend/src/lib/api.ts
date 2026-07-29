@@ -8,7 +8,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 120000, // 2-minute timeout for long-running 14-agent analysis
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -50,9 +50,30 @@ export const api = {
     return res.data;
   },
 
-  // Multi-Agent Analysis Pipeline
-  async runAnalysis(payload: { user_id?: string; resume_id?: string; job_id?: string; target_role?: string; company_name?: string }): Promise<any> {
+  /**
+   * Primary analysis entry point.
+   * Sends resume_text and job_description_text INLINE so the backend does NOT
+   * have to look them up by MongoDB ID (which causes the "no results" bug).
+   */
+  async runAnalysis(payload: {
+    user_id?: string;
+    resume_text?: string;
+    job_description_text?: string;
+    target_role?: string;
+    company_name?: string;
+    experience_level?: string;
+    career_goal?: string;
+    // Legacy ID fields kept for compat
+    resume_id?: string;
+    job_id?: string;
+  }): Promise<any> {
     const res = await apiClient.post('/agents/run-analysis', payload);
+    return res.data;
+  },
+
+  /** Fallback: fetch a completed analysis from MongoDB by analysis_id (used after page refresh). */
+  async getAnalysisResult(analysisId: string): Promise<any> {
+    const res = await apiClient.get(`/agents/results/${analysisId}`);
     return res.data;
   },
 
@@ -63,7 +84,7 @@ export const api = {
     return res.data;
   },
 
-  // Resume & Job
+  // Resume - for the standalone Resume Analyzer page only
   async analyzeResume(formData: FormData): Promise<any> {
     const res = await apiClient.post('/resume/analyze', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
