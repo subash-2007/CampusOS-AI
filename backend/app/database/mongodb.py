@@ -1,4 +1,5 @@
 import logging
+import certifi
 from typing import Optional, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.core.config import settings
@@ -82,15 +83,28 @@ class MongoDBManager:
     async def connect(self):
         db_name = getattr(settings, "DATABASE_NAME", "campusOS")
         try:
-            self.client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=2000)
+            # Connect to MongoDB Atlas or local Compass using certifi TLS certificate bundle
+            self.client = AsyncIOMotorClient(
+                settings.MONGODB_URL,
+                tlsCAFile=certifi.where(),
+                serverSelectionTimeoutMS=5000
+            )
             await self.client.admin.command('ping')
             self.db = self.client[db_name]
             self.is_connected = True
-            logger.info(f"Connected to MongoDB Atlas/Compass ({db_name}) at {settings.MONGODB_URL}")
+            logger.info(f"Successfully connected to MongoDB Atlas Cloud Cluster ({db_name})!")
         except Exception as e:
-            logger.warning(f"MongoDB connection failed ({e}). Utilizing Motor In-Memory Database Store ({db_name}).")
-            self.db = InMemoryDatabase()
-            self.is_connected = False
+            logger.warning(f"MongoDB connection retry without tlsCAFile due to: {e}")
+            try:
+                self.client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=5000)
+                await self.client.admin.command('ping')
+                self.db = self.client[db_name]
+                self.is_connected = True
+                logger.info(f"Successfully connected to MongoDB ({db_name}) at {settings.MONGODB_URL}")
+            except Exception as ex:
+                logger.warning(f"MongoDB Atlas connection failed ({ex}). Fallback to In-Memory DB Store.")
+                self.db = InMemoryDatabase()
+                self.is_connected = False
 
     async def disconnect(self):
         if self.client:
