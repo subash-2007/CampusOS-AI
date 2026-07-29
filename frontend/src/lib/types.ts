@@ -1,11 +1,14 @@
 export interface UserProfile {
   id: string;
   email: string;
-  full_name: string;
+  name?: string;
+  full_name?: string;
   target_role: string;
-  experience_level: string;
+  experience?: string;
+  experience_level?: string;
+  career_goal?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface TokenResponse {
