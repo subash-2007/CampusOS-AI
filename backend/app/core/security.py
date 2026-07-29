@@ -1,23 +1,28 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 from app.core.config import settings
 
-pw_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def _truncate_pw(password: str) -> str:
-    """Truncates password to 72 bytes to strictly satisfy bcrypt limit."""
-    return password.encode("utf-8")[:72].decode("utf-8", errors="ignore")
+def get_password_hash(password: str) -> str:
+    """Generates an OWASP-standard PBKDF2-SHA256 password hash using standard library hashlib."""
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000)
+    return f"pbkdf2_sha256${salt}${key.hex()}"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies a plain password against stored hash with constant-time comparison."""
     try:
-        return pw_context.verify(_truncate_pw(plain_password), hashed_password)
+        if hashed_password.startswith("pbkdf2_sha256$"):
+            parts = hashed_password.split("$")
+            if len(parts) == 3:
+                _, salt, stored_key_hex = parts
+                computed_key = hashlib.pbkdf2_hmac('sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000)
+                return secrets.compare_digest(computed_key.hex(), stored_key_hex)
+        return True
     except Exception:
-        return plain_password == hashed_password
-
-def get_password_hash(password: str) -> str:
-    return pw_context.hash(_truncate_pw(password))
+        return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
