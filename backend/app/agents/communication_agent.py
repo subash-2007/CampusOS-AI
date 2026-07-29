@@ -6,51 +6,40 @@ class CommunicationAgent(BaseAgent):
         super().__init__(
             agent_id="communication_intelligence",
             name="Communication Intelligence Agent",
-            description="Drafts personalized recruiter cold emails, LinkedIn connection requests, follow-up notes, and salary negotiation scripts.",
+            description="Drafts personalized recruiter cold emails, LinkedIn connection notes, and custom cover letters.",
             icon="Send"
         )
 
     async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
-        comm_type = inputs.get("type", "cold_email")
-        company_name = inputs.get("company_name", "") or (memory.company_name if memory else "") or "Tech Global"
-        recipient_role = inputs.get("recipient_role", "Engineering Manager")
-        target_role = memory.get_target_role() if memory else "Software Engineer"
-        candidate_skills = memory.get_candidate_skills() if memory else ["Next.js", "FastAPI", "Python"]
+        company_name = memory.company_name if memory else "Target Enterprise"
+        target_role = memory.target_role if memory else "Software Engineer"
+        candidate_skills = memory.get_candidate_skills() if memory else ["Full-Stack Engineering"]
 
         reasoning_steps = [
-            f"Tailored outreach messaging strategy for recipient '{recipient_role}' at '{company_name}'",
-            "Structured high-conversion value proposition using candidate's actual skill stack",
-            "Generated professional multi-channel communication templates"
+            "Analyzed candidate experience and target company specs",
+            "Generated high-converting recruiter cold email, LinkedIn note, and targeted cover letter"
         ]
 
-        skills_str = ", ".join(candidate_skills[:3]) if candidate_skills else "Full Stack Software Engineering"
-
-        dynamic_data = {
-            "subject_line": f"{target_role} with {skills_str} experience - Excited about {company_name}'s Engineering Team",
-            "body_text": f"Hi {recipient_role},\n\nI’ve been following {company_name}’s engineering work with great interest. As a {target_role} specializing in {skills_str}, I recently built high-throughput web applications with sub-100ms API response times.\n\nI’d love to connect for 10 minutes to learn more about upcoming engineering initiatives on your team.\n\nBest regards,\nCandidate",
-            "linkedin_inmail": f"Hi! Inspired by {company_name}'s engineering vision. I'm a {target_role} skilled in {skills_str} eager to contribute to high-impact projects. Would love to connect!",
-            "follow_up_note": f"Hi {recipient_role},\n\nFollowing up on my previous message regarding the {target_role} role at {company_name}. I recently published an open-source project showcasing microservice performance optimizations and would love to connect when convenient!",
-            "salary_negotiation_script": f"Thank you so much for extending this offer to join {company_name}! Based on my technical skillset in {skills_str} and market benchmark data for this role, I was hoping we could explore aligning base compensation to $X. I am extremely enthusiastic about joining the team.",
-            "pro_tips": [
-                "Keep cold emails under 150 words for 3x higher response rates",
-                "Send emails on Tuesday or Thursday mornings between 8:00 AM - 9:30 AM local time"
-            ]
+        dynamic_fallback = {
+            "recruiter_email": f"Subject: Application for {target_role} - {', '.join(candidate_skills[:2])}\n\nHi Hiring Team,\n\nI have been following {company_name}'s recent technical developments and wanted to express my enthusiasm for the {target_role} role. With experience building scalable applications using {', '.join(candidate_skills[:3])}, I am confident I can bring immediate value to your engineering team.\n\nAttached is my resume for your review.\n\nBest regards,\nCandidate",
+            "linkedin_message": f"Hi [Recruiter Name], I noticed you lead technical hiring for {target_role} roles at {company_name}. I recently built a full-stack production application matching your tech stack. Would love to connect and share more!",
+            "cover_letter": f"Dear Hiring Manager,\n\nI am writing to formally apply for the {target_role} position at {company_name}. Throughout my academic and project engineering experience, I have developed expertise in {', '.join(candidate_skills[:4])}. I am impressed by {company_name}'s dedication to engineering quality and would welcome the opportunity to discuss how my background aligns with your goals.\n\nSincerely,\nCandidate"
         }
 
         system_prompt = (
-            "You are an Executive Tech Recruiter & Communication Strategist. Return JSON with keys: "
-            "'subject_line' (str), 'body_text' (str), 'linkedin_inmail' (str), 'follow_up_note' (str), "
-            "'salary_negotiation_script' (str), 'pro_tips' (list)."
+            "You are an Executive Communication & Career Coach. Draft recruiter outreach messages. "
+            "Return JSON ONLY with keys:\n"
+            "- 'recruiter_email': str (Full cold email template)\n"
+            "- 'linkedin_message': str (Short LinkedIn connection note <300 chars)\n"
+            "- 'cover_letter': str (3-paragraph tailored cover letter)"
         )
 
-        user_prompt = f"Type: {comm_type}, Company: {company_name}, Recipient: {recipient_role}, Role: {target_role}\nDynamic Data:\n{dynamic_data}"
+        user_prompt = f"Company: {company_name}\nTarget Role: {target_role}\nCandidate Skills: {candidate_skills}"
         llm_response = await self.call_llm(system_prompt, user_prompt)
-
-        output = self.parse_json_safely(llm_response, dynamic_data)
+        output = self.parse_json_safely(llm_response, dynamic_fallback)
 
         if memory:
             memory.communication_templates = output
-            memory.log_step(self.agent_id, "Completed dynamic Communication Template generation", {"company": company_name})
 
         return {
             "agent_id": self.agent_id,

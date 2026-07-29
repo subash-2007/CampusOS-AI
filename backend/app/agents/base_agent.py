@@ -15,7 +15,7 @@ class BaseAgent:
         self.icon = icon
 
     async def call_llm(self, system_prompt: str, user_prompt: str) -> str:
-        """Invokes LLM (OpenAI, Anthropic, Gemini) for prose enhancement only."""
+        """Invokes LLM (OpenAI, Anthropic, Gemini) using existing API keys in .env."""
         # 1. Try OpenAI if API key present
         if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.startswith("sk-") and "your_" not in settings.OPENAI_API_KEY:
             try:
@@ -28,7 +28,7 @@ class BaseAgent:
                         {"role": "user", "content": user_prompt}
                     ],
                     temperature=0.7,
-                    max_tokens=1500
+                    max_tokens=2000
                 )
                 content = response.choices[0].message.content
                 if content:
@@ -43,7 +43,7 @@ class BaseAgent:
                 client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
                 response = await client.messages.create(
                     model="claude-3-5-sonnet-20241022",
-                    max_tokens=1500,
+                    max_tokens=2000,
                     system=system_prompt,
                     messages=[{"role": "user", "content": user_prompt}]
                 )
@@ -58,7 +58,7 @@ class BaseAgent:
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GOOGLE_API_KEY)
                 model = genai.GenerativeModel('gemini-1.5-flash')
-                response = await model.generate_content_async(f"{system_prompt}\n\nUser Request: {user_prompt}")
+                response = await model.generate_content_async(f"{system_prompt}\n\nUser Context:\n{user_prompt}")
                 if response.text:
                     return response.text
             except Exception as e:
@@ -84,19 +84,16 @@ class BaseAgent:
         return []
 
     def parse_json_safely(self, text: str, dynamic_fallback: Dict[str, Any]) -> Dict[str, Any]:
-        """Safely parses JSON string or returns dynamic calculated NLP data."""
+        """Safely parses JSON string or returns dynamic calculated data."""
         if not text:
             return dynamic_fallback
         try:
             cleaned = text.strip()
-            if cleaned.startswith("```json"):
-                cleaned = cleaned[7:]
-            if cleaned.startswith("```"):
-                cleaned = cleaned[3:]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
+            if "```json" in cleaned:
+                cleaned = cleaned.split("```json")[1].split("```")[0]
+            elif "```" in cleaned:
+                cleaned = cleaned.split("```")[1].split("```")[0]
             parsed = json.loads(cleaned.strip())
-            # Ensure essential calculated metrics come from local engine if available
             return parsed
         except Exception:
             return dynamic_fallback
