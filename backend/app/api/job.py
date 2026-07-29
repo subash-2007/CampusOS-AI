@@ -1,39 +1,63 @@
-from fastapi import APIRouter, Depends
-from app.models.schemas import JobDescriptionRequest, ATSMatchRequest
-from app.agents import agent_registry
-from app.core.db import get_db
+import uuid
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, Header
+from typing import Optional
+from app.models.resume import JobDescriptionDB
+from app.database.mongodb import get_mongodb
+from app.core.security import decode_access_token
+from app.nlp import compute_ats_optimization, extract_skills_from_text
 
-router = APIRouter(prefix="/job", tags=["Job & ATS Intelligence"])
+router = APIRouter(prefix="/job", tags=["Job Description Management"])
+
+class JobAnalyzeRequest(JobDescriptionDB):
+    pass
 
 @router.post("/analyze")
-async def analyze_job(req: JobDescriptionRequest, db=Depends(get_db)):
-    job_agent = agent_registry.get_agent("job_intelligence")
-    company_agent = agent_registry.get_agent("company_intelligence")
+async def analyze_job(
+    company: str = "Tech Enterprise",
+    role: str = "Software Engineer",
+    description: str = "",
+    authorization: Optional[str] = Header(None),
+    mongo=Depends(get_mongodb)
+):
+    user_id = "guest_user"
+    if authorization and authorization.startswith("Bearer "):
+        payload = decode_access_token(authorization.split(" ")[1])
+        if payload:
+            user_id = payload.get("sub", "guest_user")
 
-    job_res = await job_agent.run({"job_description_text": req.description_text})
-    company_res = await company_agent.run({"company_name": req.company or "Tech Enterprise"})
+    now = datetime.now(timezone.utc).isoformat()
+    job_id = str(uuid.uuid4())
+
+    job_doc = {
+        "_id": job_id,
+        "job_id": job_id,
+        "user_id": user_id,
+        "company": company,
+        "role": role,
+        "description": description,
+        "created_at": now
+    }
+
+    jobs_col = mongo.get_collection("job_descriptions")
+    await jobs_col.insert_one(job_doc)
+
+    skills = extract_skills_from_text(description)
 
     return {
-        "job_analysis": job_res["output"],
-        "company_intelligence": company_res["output"]
+        "job_id": job_id,
+        "company": company,
+        "role": role,
+        "description": description,
+        "extracted_skills": skills,
+        "created_at": now
     }
 
 @router.post("/match")
-async def match_resume_to_job(req: ATSMatchRequest, db=Depends(get_db)):
-    ats_agent = agent_registry.get_agent("ats_optimization")
-    skill_agent = agent_registry.get_agent("skill_gap_intelligence")
-
-    ats_res = await ats_agent.run({
-        "resume_text": req.resume_text,
-        "job_description_text": req.job_description_text
-    })
-
-    skill_res = await skill_agent.run({
-        "resume_text": req.resume_text,
-        "target_role": "Target Job Posting"
-    })
-
-    return {
-        "ats_optimization": ats_res["output"],
-        "skill_gap_analysis": skill_res["output"]
-    }
+async def match_job(
+    resume_text: str = "",
+    job_description_text: str = "",
+    mongo=Depends(get_mongodb)
+):
+    ats_res = compute_ats_optimization(resume_text, job_description_text)
+    return {"ats_optimization": ats_res}

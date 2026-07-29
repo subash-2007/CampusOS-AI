@@ -1,49 +1,61 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
-from app.agents import agent_registry
-from app.core.db import get_db
+from fastapi import APIRouter, Depends, Header, HTTPException
+from typing import Optional
+from app.database.mongodb import get_mongodb
+from app.core.security import decode_access_token
+from app.agents.supervisor_agent import supervisor_agent
 
-router = APIRouter(prefix="/reports", tags=["AI Comprehensive Reports"])
+router = APIRouter(prefix="/reports", tags=["Career Reports & Dashboard Stats"])
+
+@router.get("/latest")
+async def get_latest_report(
+    authorization: Optional[str] = Header(None),
+    mongo=Depends(get_mongodb)
+):
+    user_id = "guest_user"
+    if authorization and authorization.startswith("Bearer "):
+        payload = decode_access_token(authorization.split(" ")[1])
+        if payload:
+            user_id = payload.get("sub", "guest_user")
+
+    reports_col = mongo.get_collection("career_reports")
+    report = await reports_col.find_one({"user_id": user_id})
+    
+    if not report:
+        # Generate initial report for user
+        report = await supervisor_agent.run_supervisor_pipeline(
+            user_id=user_id,
+            target_role="Full Stack Software Engineer",
+            db=mongo
+        )
+
+    return report
+
+@router.get("/user/{user_id}")
+async def get_user_reports(user_id: str, mongo=Depends(get_mongodb)):
+    reports_col = mongo.get_collection("career_reports")
+    reports_cursor = reports_col.find({"user_id": user_id})
+    results = await reports_cursor.to_list(length=20)
+    return results
 
 @router.post("/generate")
-async def generate_full_report(resume_text: str = "", target_role: str = "Full Stack Engineer", db=Depends(get_db)):
-    now = datetime.now(timezone.utc).isoformat()
+async def generate_full_report(
+    resume_text: str = "",
+    target_role: str = "Full Stack Engineer",
+    authorization: Optional[str] = Header(None),
+    mongo=Depends(get_mongodb)
+):
+    user_id = "guest_user"
+    if authorization and authorization.startswith("Bearer "):
+        payload = decode_access_token(authorization.split(" ")[1])
+        if payload:
+            user_id = payload.get("sub", "guest_user")
 
-    # Run agents to construct full report
-    resume_agent = agent_registry.get_agent("resume_intelligence")
-    ats_agent = agent_registry.get_agent("ats_optimization")
-    job_agent = agent_registry.get_agent("job_intelligence")
-    company_agent = agent_registry.get_agent("company_intelligence")
-    skill_agent = agent_registry.get_agent("skill_gap_intelligence")
-    roadmap_agent = agent_registry.get_agent("career_roadmap")
-    market_agent = agent_registry.get_agent("market_trend")
-    portfolio_agent = agent_registry.get_agent("portfolio_intelligence")
+    report = await supervisor_agent.run_supervisor_pipeline(
+        user_id=user_id,
+        resume_text=resume_text,
+        target_role=target_role,
+        db=mongo
+    )
 
-    r_out = await resume_agent.run({"resume_text": resume_text})
-    a_out = await ats_agent.run({"resume_text": resume_text, "job_description_text": target_role})
-    j_out = await job_agent.run({"job_description_text": target_role})
-    c_out = await company_agent.run({"company_name": "Target Enterprise"})
-    s_out = await skill_agent.run({"resume_text": resume_text, "target_role": target_role})
-    rm_out = await roadmap_agent.run({"target_role": target_role})
-    m_out = await market_agent.run({"domain": target_role})
-    p_out = await portfolio_agent.run({"target_role": target_role})
-
-    report_doc = {
-        "report_id": f"REP-{int(datetime.now().timestamp())}",
-        "generated_at": now,
-        "overall_readiness_score": 88,
-        "target_role": target_role,
-        "resume_intelligence": r_out["output"],
-        "ats_optimization": a_out["output"],
-        "job_intelligence": j_out["output"],
-        "company_intelligence": c_out["output"],
-        "skill_gap_analysis": s_out["output"],
-        "career_roadmap": rm_out["output"],
-        "market_trends": m_out["output"],
-        "portfolio_recommendations": p_out["output"]
-    }
-
-    reports_col = db.get_collection("reports")
-    await reports_col.insert_one(report_doc)
-
-    return report_doc
+    return report

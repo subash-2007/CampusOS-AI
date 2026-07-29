@@ -8,7 +8,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  timeout: 30000,
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -23,13 +23,17 @@ apiClient.interceptors.request.use((config) => {
 
 export const api = {
   // Auth
-  async signup(data: any): Promise<TokenResponse> {
-    const res = await apiClient.post('/auth/signup', data);
+  async register(data: any): Promise<TokenResponse> {
+    const res = await apiClient.post('/auth/register', data);
     if (typeof window !== 'undefined') {
       localStorage.setItem('campusos_token', res.data.access_token);
       localStorage.setItem('campusos_user', JSON.stringify(res.data.user));
     }
     return res.data;
+  },
+
+  async signup(data: any): Promise<TokenResponse> {
+    return this.register(data);
   },
 
   async login(email: string, password: string): Promise<TokenResponse> {
@@ -47,22 +51,44 @@ export const api = {
       return res.data;
     } catch (e) {
       return {
-        id: "user-123",
-        email: "student@campusos.ai",
-        full_name: "CampusOS Student",
-        target_role: "Software Engineer",
-        experience_level: "Entry Level / Student",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        id: "demo-user-123",
+        name: "Demo Student",
+        email: "demo@campusos.ai",
+        target_role: "Full Stack Software Engineer",
+        experience: "Entry Level / Student",
+        created_at: new Date().toISOString()
       };
     }
   },
 
-  // Supervisor Pipeline
+  // Multi-Agent Analysis Pipeline
+  async runAnalysis(payload: { user_id?: string; resume_id?: string; job_id?: string; target_role?: string; company_name?: string }): Promise<any> {
+    const res = await apiClient.post('/agents/run-analysis', payload);
+    return res.data;
+  },
+
   async runSupervisorAnalysis(formData: FormData): Promise<any> {
     const res = await apiClient.post('/supervisor/analyze', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
+    return res.data;
+  },
+
+  // Resume & Job
+  async uploadResume(formData: FormData): Promise<any> {
+    const res = await apiClient.post('/resume/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  },
+
+  async analyzeJob(jobDescText: string, company: string = '', role: string = 'Software Engineer'): Promise<any> {
+    const res = await apiClient.post('/job/analyze', null, { params: { company, role, description: jobDescText } });
+    return res.data;
+  },
+
+  async matchJob(resumeText: string, jobDescText: string): Promise<any> {
+    const res = await apiClient.post('/job/match', null, { params: { resume_text: resumeText, job_description_text: jobDescText } });
     return res.data;
   },
 
@@ -80,24 +106,6 @@ export const api = {
     return res.data;
   },
 
-  // Resume & Job
-  async uploadResume(formData: FormData): Promise<any> {
-    const res = await apiClient.post('/resume/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return res.data;
-  },
-
-  async analyzeJob(jobDescText: string, company: string = ''): Promise<any> {
-    const res = await apiClient.post('/job/analyze', { description_text: jobDescText, company });
-    return res.data;
-  },
-
-  async matchJob(resumeText: string, jobDescText: string): Promise<any> {
-    const res = await apiClient.post('/job/match', { resume_text: resumeText, job_description_text: jobDescText });
-    return res.data;
-  },
-
   // Chat
   async sendChatMessage(message: string, selectedAgent: string = 'career_orchestrator'): Promise<ChatMessage> {
     const res = await apiClient.post('/chat/message', { message, selected_agent: selectedAgent });
@@ -107,6 +115,11 @@ export const api = {
   // Analytics & Reports
   async getAnalytics(): Promise<any> {
     const res = await apiClient.get('/analytics/overview');
+    return res.data;
+  },
+
+  async getLatestReport(): Promise<any> {
+    const res = await apiClient.get('/reports/latest');
     return res.data;
   },
 

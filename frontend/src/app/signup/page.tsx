@@ -10,10 +10,11 @@ import { Card } from '@/components/ui/Card';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [targetRole, setTargetRole] = useState('Full Stack Software Engineer');
+  const [experience, setExperience] = useState('Entry Level / Student');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,16 +23,17 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
     try {
-      await api.signup({
-        full_name: fullName,
+      await api.register({
+        name,
         email,
         password,
         target_role: targetRole,
-        experience_level: 'Student / Entry-Level'
+        experience,
+        career_goal: `Become ${targetRole}`
       });
       router.push('/dashboard');
     } catch (err: any) {
-      setError('Registration failed. Please try again.');
+      setError(err?.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -66,8 +68,8 @@ export default function SignupPage() {
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm"
                   placeholder="Alex Mercer"
                   required
@@ -103,6 +105,19 @@ export default function SignupPage() {
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Experience Level</label>
+              <select
+                value={experience}
+                onChange={(e) => setExperience(e.target.value)}
+                className="w-full glass-input rounded-xl p-2.5 text-sm"
+              >
+                <option value="Entry Level / Student" className="bg-slate-900">Student / Entry-Level (0-2 YOE)</option>
+                <option value="Mid Level" className="bg-slate-900">Mid-Level (2-5 YOE)</option>
+                <option value="Senior Level" className="bg-slate-900">Senior Level (5+ YOE)</option>
+              </select>
             </div>
 
             <div>
