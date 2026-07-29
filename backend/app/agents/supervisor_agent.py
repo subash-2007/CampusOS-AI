@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 from app.agents.base_agent import BaseAgent
 from app.agents.shared_memory import SharedMemory
-from app.agents import agent_registry
 from app.nlp import parse_document_input, fetch_url_text
 
 logger = logging.getLogger("CampusOS.SupervisorAgent")
@@ -73,6 +72,8 @@ class SupervisorAgent(BaseAgent):
         ]
 
         # Step 3: Sequential Agent Execution passing Shared Memory Context
+        from app.agents import agent_registry
+
         for task_title, sub_agent_id, sub_inputs in tasks:
             sub_agent = agent_registry.get_agent(sub_agent_id)
             if sub_agent:
