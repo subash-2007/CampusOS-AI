@@ -75,11 +75,15 @@ export const api = {
   },
 
   // Resume & Job
-  async uploadResume(formData: FormData): Promise<any> {
-    const res = await apiClient.post('/resume/upload', formData, {
+  async analyzeResume(formData: FormData): Promise<any> {
+    const res = await apiClient.post('/resume/analyze', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return res.data;
+  },
+
+  async uploadResume(formData: FormData): Promise<any> {
+    return this.analyzeResume(formData);
   },
 
   async analyzeJob(jobDescText: string, company: string = '', role: string = 'Software Engineer'): Promise<any> {

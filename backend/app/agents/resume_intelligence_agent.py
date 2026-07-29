@@ -28,21 +28,34 @@ class ResumeIntelligenceAgent(BaseAgent):
         system_prompt = (
             "You are an Expert Technical Recruiter & Resume Auditor. Analyze the provided resume text and user profile. "
             "Return JSON ONLY with keys:\n"
-            "- 'resume_score': int (0-100)\n"
-            "- 'extracted_skills': list of strings (technical & soft skills parsed from resume)\n"
+            "- 'overall_score': int (0-100)\n"
+            "- 'impact_score': int (0-100)\n"
+            "- 'credibility_index': int (0-100)\n"
+            "- 'ats_readiness': int (0-100)\n"
+            "- 'extracted_skills': list of strings\n"
             "- 'strengths': list of 3 specific strengths\n"
             "- 'weaknesses': list of 3 specific weaknesses or gaps\n"
-            "- 'improvements': list of 3 actionable bullet improvement tips"
+            "- 'suggestions': list of 3 actionable bullet improvement tips"
         )
 
         user_prompt = (
             f"User Profile: {user_profile}\n"
             f"Resume Text:\n{resume_text}\n\n"
-            f"Calculated Dynamic Metadata:\n{dynamic_fallback}"
+            f"Calculated Dynamic Benchmark:\n{dynamic_fallback}"
         )
 
         llm_response = await self.call_llm(system_prompt, user_prompt)
         output = self.parse_json_safely(llm_response, dynamic_fallback)
+
+        # Standardize keys
+        if "overall_score" not in output:
+            output["overall_score"] = output.get("resume_score", dynamic_fallback["overall_score"])
+        if "impact_score" not in output:
+            output["impact_score"] = dynamic_fallback["impact_score"]
+        if "credibility_index" not in output:
+            output["credibility_index"] = dynamic_fallback["credibility_index"]
+        if "ats_readiness" not in output:
+            output["ats_readiness"] = dynamic_fallback["ats_readiness"]
 
         if not output.get("extracted_skills"):
             output["extracted_skills"] = extracted_skills
