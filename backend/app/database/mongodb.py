@@ -1,7 +1,7 @@
 import logging
 import certifi
 from typing import Optional, Dict, Any
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import settings
 
 logger = logging.getLogger("CampusOS.Database")
@@ -82,29 +82,51 @@ class MongoDBManager:
 
     async def connect(self):
         db_name = getattr(settings, "DATABASE_NAME", "campusOS")
+        url = settings.MONGODB_URL
+
+        # Strategy 1: Certifi TLS Certificate bundle for MongoDB Atlas
         try:
-            # Connect to MongoDB Atlas or local Compass using certifi TLS certificate bundle
             self.client = AsyncIOMotorClient(
-                settings.MONGODB_URL,
+                url,
                 tlsCAFile=certifi.where(),
-                serverSelectionTimeoutMS=5000
+                serverSelectionTimeoutMS=8000
             )
             await self.client.admin.command('ping')
             self.db = self.client[db_name]
             self.is_connected = True
-            logger.info(f"Successfully connected to MongoDB Atlas Cloud Cluster ({db_name})!")
-        except Exception as e:
-            logger.warning(f"MongoDB connection retry without tlsCAFile due to: {e}")
-            try:
-                self.client = AsyncIOMotorClient(settings.MONGODB_URL, serverSelectionTimeoutMS=5000)
-                await self.client.admin.command('ping')
-                self.db = self.client[db_name]
-                self.is_connected = True
-                logger.info(f"Successfully connected to MongoDB ({db_name}) at {settings.MONGODB_URL}")
-            except Exception as ex:
-                logger.warning(f"MongoDB Atlas connection failed ({ex}). Fallback to In-Memory DB Store.")
-                self.db = InMemoryDatabase()
-                self.is_connected = False
+            logger.info(f"Connected to MongoDB Atlas Cloud Cluster ({db_name})!")
+            return
+        except Exception as e1:
+            logger.warning(f"MongoDB connect strategy 1 failed: {e1}")
+
+        # Strategy 2: TLS bypass for Windows local SSL handshake issues
+        try:
+            self.client = AsyncIOMotorClient(
+                url,
+                tls=True,
+                tlsAllowInvalidCertificates=True,
+                serverSelectionTimeoutMS=8000
+            )
+            await self.client.admin.command('ping')
+            self.db = self.client[db_name]
+            self.is_connected = True
+            logger.info(f"Connected to MongoDB Atlas ({db_name}) with TLS bypass!")
+            return
+        except Exception as e2:
+            logger.warning(f"MongoDB connect strategy 2 failed: {e2}")
+
+        # Strategy 3: Standard connection string
+        try:
+            self.client = AsyncIOMotorClient(url, serverSelectionTimeoutMS=5000)
+            await self.client.admin.command('ping')
+            self.db = self.client[db_name]
+            self.is_connected = True
+            logger.info(f"Connected to MongoDB ({db_name}) at {url}")
+            return
+        except Exception as e3:
+            logger.warning(f"MongoDB connection failed ({e3}). Fallback to In-Memory DB Store.")
+            self.db = InMemoryDatabase()
+            self.is_connected = False
 
     async def disconnect(self):
         if self.client:
