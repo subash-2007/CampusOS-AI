@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.agents.base_agent import BaseAgent
 
 class CareerRoadmapAgent(BaseAgent):
@@ -10,81 +10,91 @@ class CareerRoadmapAgent(BaseAgent):
             icon="Compass"
         )
 
-    async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        target_role = inputs.get("target_role", "") or inputs.get("prompt", "") or "Full Stack Engineer"
+    async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
+        target_role = inputs.get("target_role", "") or (memory.get_target_role() if memory else "Software Engineer")
+        missing_skills = memory.get_missing_skills() if memory else []
 
         reasoning_steps = [
-            "Structured multi-phase execution strategy (Days 1-30, 31-60, 61-90)",
-            "Defined high-value portfolio milestones & resume target checkpoints",
-            "Calculated market trajectory & target compensation ranges"
+            f"Structured multi-phase career roadmap tailored for target role '{target_role}'",
+            "Aligned learning milestones with candidate's identified skill gaps",
+            "Calculated strategic deliverables & expected compensation trajectory"
         ]
+
+        gap_1 = missing_skills[0] if missing_skills else "Cloud Deployment & Docker"
+        gap_2 = missing_skills[1] if len(missing_skills) > 1 else "System Architecture & Caching"
+
+        dynamic_milestones = [
+            {
+                "phase": "Days 1 - 30 (Month 1)",
+                "title": f"Skill Gap Blitz: {gap_1}",
+                "duration": "Month 1",
+                "goals": [
+                    f"Master core concepts and hands-on production labs for {gap_1}",
+                    f"Incorporate {gap_1} into a full-stack portfolio project",
+                    "Optimize resume bullet points to achieve 85%+ ATS match score"
+                ],
+                "deliverables": [
+                    f"Published GitHub project repository utilizing {gap_1}",
+                    "Validated ATS-compliant resume PDF",
+                    "Completed 20 targeted data structure & system design problems"
+                ],
+                "key_metrics": "Resume ATS Score >= 85%, 1 deployed live project"
+            },
+            {
+                "phase": "Days 31 - 60 (Month 2)",
+                "title": f"Advanced Competency: {gap_2} & Recruiter Outreach",
+                "duration": "Month 2",
+                "goals": [
+                    f"Build production integration involving {gap_2}",
+                    "Launch targeted recruiter outreach campaign (15 personalized messages/week)",
+                    "Conduct 5 mock technical interview practice sessions"
+                ],
+                "deliverables": [
+                    "Deployed full-stack app with production CI/CD pipeline",
+                    "30 customized cold emails/LinkedIn applications submitted",
+                    "Refined STAR behavioral interview stories"
+                ],
+                "key_metrics": "5+ recruiter responses, 3 initial phone screens"
+            },
+            {
+                "phase": "Days 61 - 90 (Month 3)",
+                "title": "Interview Execution & Offer Negotiation",
+                "duration": "Month 3",
+                "goals": [
+                    "Ace technical coding assessments and system architecture loops",
+                    "Execute final round virtual/onsite interview loops",
+                    "Negotiate compensation packages with industry benchmark data"
+                ],
+                "deliverables": [
+                    "Completion of 3+ full interview loops",
+                    "Offer evaluation matrix & counter-offer scripts",
+                    f"Signed offer letter for target {target_role} position"
+                ],
+                "key_metrics": "1-2 formal job offers, successful contract execution"
+            }
+        ]
+
+        dynamic_data = {
+            "target_role": target_role,
+            "career_trajectory": f"Junior {target_role} -> Senior {target_role} -> Technical Lead / Architect",
+            "expected_salary_range": "$85,000 - $125,000 / year (Target Compensation)",
+            "milestones": dynamic_milestones
+        }
 
         system_prompt = (
             "You are a Strategic Career Roadmap Planner. Return JSON with keys: "
             "'target_role' (str), 'career_trajectory' (str), 'expected_salary_range' (str), "
             "'milestones' (list of dicts with 'phase', 'title', 'duration', 'goals', 'deliverables', 'key_metrics')."
         )
-
-        user_prompt = f"Target Role: {target_role}"
+        user_prompt = f"Target Role: {target_role}\nMissing Skills: {missing_skills}\nDynamic Data:\n{dynamic_data}"
         llm_response = await self.call_llm(system_prompt, user_prompt)
 
-        fallback = {
-            "target_role": target_role,
-            "career_trajectory": "Junior Software Engineer -> Full Stack Developer -> Senior Architect / Tech Lead",
-            "expected_salary_range": "$85,000 - $115,000 / year (Entry/Junior Level)",
-            "milestones": [
-                {
-                    "phase": "Days 1 - 30",
-                    "title": "Foundation & Skill Gap Blitz",
-                    "duration": "Month 1",
-                    "goals": [
-                        "Master Next.js App Router and FastAPI production patterns",
-                        "Build 1 production-grade full-stack project with authentication & DB",
-                        "Optimize resume to 85%+ ATS score format"
-                    ],
-                    "deliverables": [
-                        "Published GitHub repository with clean documentation",
-                        "Validated ATS-compliant PDF resume",
-                        "Completed 20 LeetCode Medium data structure problems"
-                    ],
-                    "key_metrics": "Resume ATS score >= 85%, 1 deployed live project"
-                },
-                {
-                    "phase": "Days 31 - 60",
-                    "title": "Portfolio Amplification & Outreach",
-                    "duration": "Month 2",
-                    "goals": [
-                        "Integrate AI agent capabilities / third-party API into portfolio app",
-                        "Launch targeted LinkedIn recruiter outreach campaign (15 messages/week)",
-                        "Conduct 5 mock interview sessions with STAR responses"
-                    ],
-                    "deliverables": [
-                        "Deployed full-stack app on Vercel/Render with custom domain",
-                        "30 customized cold emails/LinkedIn applications submitted",
-                        "Refined 5 STAR stories for behavioral interviews"
-                    ],
-                    "key_metrics": "5+ recruiter responses, 3 initial phone screens"
-                },
-                {
-                    "phase": "Days 61 - 90",
-                    "title": "Interview Execution & Offer Negotiation",
-                    "duration": "Month 3",
-                    "goals": [
-                        "Ace technical coding assessments and system design loops",
-                        "Execute final round onsite/virtual interviews",
-                        "Negotiate job offers with target market benchmarks"
-                    ],
-                    "deliverables": [
-                        "Completion of 3+ full interview loops",
-                        "Offer evaluation matrix & counter-offer scripts",
-                        "Signed offer letter for target software engineering role"
-                    ],
-                    "key_metrics": "1-2 formal job offers, successful contract execution"
-                }
-            ]
-        }
+        output = self.parse_json_safely(llm_response, dynamic_data)
 
-        output = self.parse_json_safely(llm_response, fallback)
+        if memory:
+            memory.career_roadmap = output
+            memory.log_step(self.agent_id, "Completed dynamic Career Roadmap generation", {"milestones": len(output.get("milestones", []))})
+
         return {
             "agent_id": self.agent_id,
             "agent_name": self.name,

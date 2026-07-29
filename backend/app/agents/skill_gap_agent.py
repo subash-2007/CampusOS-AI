@@ -1,5 +1,6 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.agents.base_agent import BaseAgent
+from app.nlp import extract_skills_from_text
 
 class SkillGapAgent(BaseAgent):
     def __init__(self):
@@ -10,46 +11,79 @@ class SkillGapAgent(BaseAgent):
             icon="Zap"
         )
 
-    async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        resume_text = inputs.get("resume_text", "")
-        target_role = inputs.get("target_role", "") or inputs.get("prompt", "") or "Software Engineer"
+    async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
+        resume_text = inputs.get("resume_text", "") or (memory.resume_text if memory else "")
+        job_desc = inputs.get("job_description_text", "") or (memory.job_description_text if memory else "")
+        target_role = inputs.get("target_role", "") or (memory.get_target_role() if memory else "Software Engineer")
 
         reasoning_steps = [
-            "Audited current technical competencies from user profile",
-            "Compared against top 2026 industry demand standards for target role",
-            "Built prioritized skill acquisition matrix & learning resources"
+            "Audited current technical competencies from candidate resume",
+            "Cross-referenced against target job requirements",
+            "Calculated Readiness % and built prioritized dynamic learning pathway"
         ]
 
-        system_prompt = (
-            "You are a Skill Gap Analyst. Evaluate skill gaps for target role and return JSON with keys: "
-            "'critical_gaps' (list of dicts with 'skill', 'urgency', 'reason'), "
-            "'secondary_gaps' (list of dicts with 'skill', 'urgency', 'reason'), "
-            "'learning_pathway' (list of dicts with 'week', 'topic', 'resource', 'estimated_hours'), "
-            "'overall_readiness_pct' (int)."
-        )
+        candidate_skills = set(memory.get_candidate_skills() if memory else extract_skills_from_text(resume_text))
+        required_skills = set(extract_skills_from_text(job_desc))
 
-        user_prompt = f"Resume:\n{resume_text}\nTarget Role: {target_role}"
-        llm_response = await self.call_llm(system_prompt, user_prompt)
+        missing_skills = list(required_skills.difference(candidate_skills))
+        if not missing_skills:
+            missing_skills = ["Cloud Deployment (AWS/Docker)", "System Design & Microservices", "CI/CD Automation"]
 
-        fallback = {
-            "critical_gaps": [
-                {"skill": "Docker & Containerization", "urgency": "High", "reason": "Required for modern deployment pipelines in 85% of job listings"},
-                {"skill": "System Design Fundamentals", "urgency": "High", "reason": "Crucial for mid/senior interviews and architecture reviews"},
-                {"skill": "Redis & Caching Strategies", "urgency": "Medium", "reason": "High demand for API optimization & session management"}
-            ],
-            "secondary_gaps": [
-                {"skill": "GraphQL APIs", "urgency": "Medium", "reason": "Increasingly used for flexible client-side data fetching"},
-                {"skill": "CI/CD Pipelines (GitHub Actions)", "urgency": "Low", "reason": "Great bonus skill for DevOps awareness"}
-            ],
-            "learning_pathway": [
-                {"week": "Week 1", "topic": "Docker Containers & Compose", "resource": "Docker Official Docs & Hands-on Labs", "estimated_hours": "6 hrs"},
-                {"week": "Week 2", "topic": "System Design & Microservices", "resource": "ByteByteGo & Designing Data-Intensive Applications", "estimated_hours": "8 hrs"},
-                {"week": "Week 3", "topic": "Redis Caching & Async Queues", "resource": "Redis University Free Courses", "estimated_hours": "5 hrs"}
-            ],
-            "overall_readiness_pct": 78
+        # Readiness Calculation
+        total_req = max(1, len(required_skills))
+        matched_count = len(candidate_skills.intersection(required_skills))
+        readiness_pct = int(round((matched_count / total_req) * 100)) if required_skills else 70
+        readiness_pct = max(35, min(98, readiness_pct))
+
+        critical_gaps = []
+        for idx, skill in enumerate(missing_skills[:3]):
+            urgency = "High" if idx == 0 else "Medium"
+            critical_gaps.append({
+                "skill": skill,
+                "urgency": urgency,
+                "reason": f"Required for {target_role} role requirements and technical screens."
+            })
+
+        secondary_gaps = []
+        for skill in missing_skills[3:6]:
+            secondary_gaps.append({
+                "skill": skill,
+                "urgency": "Low",
+                "reason": "Secondary stack component for enhanced recruiter appeal."
+            })
+
+        learning_pathway = []
+        for m_idx, gap in enumerate(critical_gaps):
+            learning_pathway.append({
+                "month": f"Month {m_idx + 1}",
+                "topic": f"Mastering {gap['skill']}",
+                "resource": f"Official {gap['skill']} Documentation & Production Labs",
+                "estimated_hours": "8 - 12 hours"
+            })
+
+        dynamic_data = {
+            "critical_gaps": critical_gaps,
+            "secondary_gaps": secondary_gaps,
+            "learning_pathway": learning_pathway,
+            "overall_readiness_pct": readiness_pct
         }
 
-        output = self.parse_json_safely(llm_response, fallback)
+        system_prompt = (
+            "You are a Skill Gap Analyst. Evaluate skill gaps for target role and refine into JSON with keys: "
+            "'critical_gaps' (list of dicts), 'secondary_gaps' (list of dicts), 'learning_pathway' (list of dicts), "
+            "'overall_readiness_pct' (int)."
+        )
+        user_prompt = f"Candidate Skills: {candidate_skills}\nMissing Skills: {missing_skills}\nDynamic Data:\n{dynamic_data}"
+        llm_response = await self.call_llm(system_prompt, user_prompt)
+
+        output = self.parse_json_safely(llm_response, dynamic_data)
+        output["overall_readiness_pct"] = readiness_pct
+        output["critical_gaps"] = critical_gaps
+
+        if memory:
+            memory.skill_gap_analysis = output
+            memory.log_step(self.agent_id, "Completed dynamic Skill Gap analysis", {"readiness": readiness_pct})
+
         return {
             "agent_id": self.agent_id,
             "agent_name": self.name,

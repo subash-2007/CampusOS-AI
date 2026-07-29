@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.db import db_manager
-from app.api import auth, resume, job, agents, chat, analytics, reports
+from app.api import auth, resume, job, agents, chat, analytics, reports, supervisor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CampusOS.Main")
@@ -19,9 +19,9 @@ async def lifespan(app: FastAPI):
     await db_manager.disconnect()
 
 app = FastAPI(
-    title="CampusOS AI - Production Multi-Agent Backend",
-    description="Enterprise API engine orchestrating 14 specialized AI Agents for campus career intelligence, ATS optimization, and interview readiness.",
-    version="1.0.0",
+    title="CampusOS AI - Autonomous Multi-Agent Career Intelligence System",
+    description="Enterprise API engine orchestrating 14 specialized AI Agents governed by a central Supervisor Agent.",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -42,7 +42,8 @@ async def root():
         "app_name": settings.APP_NAME,
         "environment": settings.ENV,
         "db_connected": db_manager.is_connected,
-        "agents_available": 14
+        "agents_available": 14,
+        "supervisor_active": True
     }
 
 @app.get("/health")
@@ -51,6 +52,7 @@ async def health_check():
 
 # Include Routers
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(supervisor.router, prefix="/api/v1")
 app.include_router(resume.router, prefix="/api/v1")
 app.include_router(job.router, prefix="/api/v1")
 app.include_router(agents.router, prefix="/api/v1")

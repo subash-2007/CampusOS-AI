@@ -14,6 +14,7 @@ from app.agents.market_trend_agent import MarketTrendAgent
 from app.agents.document_verification_agent import DocumentVerificationAgent
 from app.agents.portfolio_agent import PortfolioAgent
 from app.agents.communication_agent import CommunicationAgent
+from app.agents.supervisor_agent import supervisor_agent, SupervisorAgent
 
 class AgentRegistry:
     def __init__(self):

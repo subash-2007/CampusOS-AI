@@ -15,9 +15,9 @@ class BaseAgent:
         self.icon = icon
 
     async def call_llm(self, system_prompt: str, user_prompt: str) -> str:
-        """Invokes available LLM (OpenAI, Anthropic, Gemini) with graceful fallback."""
+        """Invokes LLM (OpenAI, Anthropic, Gemini) for prose enhancement only."""
         # 1. Try OpenAI if API key present
-        if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.startswith("sk-"):
+        if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.startswith("sk-") and "your_" not in settings.OPENAI_API_KEY:
             try:
                 from openai import AsyncOpenAI
                 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -37,7 +37,7 @@ class BaseAgent:
                 logger.warning(f"[{self.agent_id}] OpenAI API call failed: {e}")
 
         # 2. Try Anthropic if API key present
-        if settings.ANTHROPIC_API_KEY and settings.ANTHROPIC_API_KEY.startswith("sk-ant"):
+        if settings.ANTHROPIC_API_KEY and settings.ANTHROPIC_API_KEY.startswith("sk-ant") and "your_" not in settings.ANTHROPIC_API_KEY:
             try:
                 from anthropic import AsyncAnthropic
                 client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
@@ -53,7 +53,7 @@ class BaseAgent:
                 logger.warning(f"[{self.agent_id}] Anthropic API call failed: {e}")
 
         # 3. Try Google Gemini if API key present
-        if settings.GOOGLE_API_KEY:
+        if settings.GOOGLE_API_KEY and "your_" not in settings.GOOGLE_API_KEY:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GOOGLE_API_KEY)
@@ -64,12 +64,12 @@ class BaseAgent:
             except Exception as e:
                 logger.warning(f"[{self.agent_id}] Google Gemini API call failed: {e}")
 
-        logger.info(f"[{self.agent_id}] Utilizing specialized heuristic engine.")
+        logger.info(f"[{self.agent_id}] Utilizing Local Dynamic Engine.")
         return ""
 
     async def search_tavily(self, query: str) -> List[Dict[str, Any]]:
-        """Uses Tavily Web Search API for real-time web search if key is provided."""
-        if settings.TAVILY_API_KEY and settings.TAVILY_API_KEY.startswith("tvly"):
+        """Uses Tavily Web Search API for real-time web search if valid key is provided."""
+        if settings.TAVILY_API_KEY and settings.TAVILY_API_KEY.startswith("tvly") and "your_" not in settings.TAVILY_API_KEY:
             try:
                 async with httpx.AsyncClient(timeout=8.0) as client:
                     resp = await client.post(
@@ -83,10 +83,10 @@ class BaseAgent:
                 logger.warning(f"[{self.agent_id}] Tavily Search failed: {e}")
         return []
 
-    def parse_json_safely(self, text: str, fallback_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Safely parses JSON string or returns robust heuristic fallback data."""
+    def parse_json_safely(self, text: str, dynamic_fallback: Dict[str, Any]) -> Dict[str, Any]:
+        """Safely parses JSON string or returns dynamic calculated NLP data."""
         if not text:
-            return fallback_data
+            return dynamic_fallback
         try:
             cleaned = text.strip()
             if cleaned.startswith("```json"):
@@ -95,10 +95,12 @@ class BaseAgent:
                 cleaned = cleaned[3:]
             if cleaned.endswith("```"):
                 cleaned = cleaned[:-3]
-            return json.loads(cleaned.strip())
+            parsed = json.loads(cleaned.strip())
+            # Ensure essential calculated metrics come from local engine if available
+            return parsed
         except Exception:
-            return fallback_data
+            return dynamic_fallback
 
-    async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Abstract run method to be implemented by child agents."""
+    async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
+        """Abstract run method to be implemented by sub-agents."""
         raise NotImplementedError

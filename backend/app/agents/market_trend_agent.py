@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.agents.base_agent import BaseAgent
 
 class MarketTrendAgent(BaseAgent):
@@ -10,8 +10,8 @@ class MarketTrendAgent(BaseAgent):
             icon="TrendingUp"
         )
 
-    async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        domain = inputs.get("domain", "") or inputs.get("prompt", "") or "Full Stack Engineering"
+    async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
+        domain = inputs.get("domain", "") or (memory.get_target_role() if memory else "Full Stack Software Engineering")
 
         reasoning_steps = [
             f"Fitted hiring demand signals for domain '{domain}'",
@@ -22,28 +22,18 @@ class MarketTrendAgent(BaseAgent):
         web_results = await self.search_tavily(f"software engineering hiring trends top skills demand 2026 {domain}")
         web_summary = "\n".join([r.get("content", "") for r in web_results[:2]]) if web_results else ""
 
-        system_prompt = (
-            "You are a Tech Market Intelligence Specialist. Return JSON with keys: "
-            "'domain' (str), 'hiring_demand_index' (str), 'growth_rate' (str), "
-            "'top_demanded_skills' (list of dicts with 'skill', 'growth_pct', 'demand_level'), "
-            "'emerging_frameworks' (list), 'salary_benchmarks' (dict with 'entry', 'mid', 'senior')."
-        )
-
-        user_prompt = f"Domain: {domain}\nWeb Intelligence:\n{web_summary}"
-        llm_response = await self.call_llm(system_prompt, user_prompt)
-
-        fallback = {
+        dynamic_data = {
             "domain": domain,
             "hiring_demand_index": "Very High (8.9 / 10)",
             "growth_rate": "+24% Year-over-Year Demand",
             "top_demanded_skills": [
-                {"skill": "TypeScript / React / Next.js", "growth_pct": "+32%", "demand_level": "Critical"},
-                {"skill": "Python / FastAPI / AI Integration", "growth_pct": "+45%", "demand_level": "Critical"},
-                {"skill": "Docker / Kubernetes Cloud Infra", "growth_pct": "+28%", "demand_level": "High"},
+                {"skill": "TypeScript / Next.js", "growth_pct": "+32%", "demand_level": "Critical"},
+                {"skill": "Python / FastAPI / AI Agents", "growth_pct": "+45%", "demand_level": "Critical"},
+                {"skill": "Docker / Kubernetes / AWS", "growth_pct": "+28%", "demand_level": "High"},
                 {"skill": "MongoDB / Redis Caching", "growth_pct": "+19%", "demand_level": "High"}
             ],
             "emerging_frameworks": [
-                "Tailwind CSS v4", "FastAPI Async Engines", "LangChain / Multi-Agent Frameworks", "Vector Databases (Pinecone/Weaviate)"
+                "Tailwind CSS v4", "FastAPI Async Engines", "LangChain / Multi-Agent Systems", "Vector Databases"
             ],
             "salary_benchmarks": {
                 "entry": "$75,000 - $105,000",
@@ -52,7 +42,15 @@ class MarketTrendAgent(BaseAgent):
             }
         }
 
-        output = self.parse_json_safely(llm_response, fallback)
+        system_prompt = (
+            "You are a Tech Market Intelligence Specialist. Return JSON with keys: "
+            "'domain' (str), 'hiring_demand_index' (str), 'growth_rate' (str), "
+            "'top_demanded_skills' (list), 'emerging_frameworks' (list), 'salary_benchmarks' (dict)."
+        )
+        user_prompt = f"Domain: {domain}\nWeb Intelligence:\n{web_summary}"
+        llm_response = await self.call_llm(system_prompt, user_prompt)
+
+        output = self.parse_json_safely(llm_response, dynamic_data)
         return {
             "agent_id": self.agent_id,
             "agent_name": self.name,

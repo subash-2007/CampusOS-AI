@@ -1,5 +1,6 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.agents.base_agent import BaseAgent
+from app.nlp import analyze_resume_dynamically
 
 class ResumeIntelligenceAgent(BaseAgent):
     def __init__(self):
@@ -10,48 +11,39 @@ class ResumeIntelligenceAgent(BaseAgent):
             icon="FileText"
         )
 
-    async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        resume_text = inputs.get("resume_text", "") or inputs.get("prompt", "")
+    async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
+        resume_text = inputs.get("resume_text", "") or (memory.resume_text if memory else "")
         
         reasoning_steps = [
-            "Parsing resume document sections (Header, Education, Experience, Skills, Projects)",
-            "Auditing quantitative metrics density & action verb strength",
-            "Evaluating visual hierarchy, clarity, and conciseness score"
+            "Parsed raw resume document text and sections",
+            "Audited quantitative metrics density & action verb strength dynamically",
+            "Calculated Resume Quality Score & extracted technical skills"
         ]
 
-        system_prompt = (
-            "You are an expert Resume Intelligence Analyst. Evaluate the provided resume text and return JSON with keys: "
-            "'overall_score' (0-100), 'impact_score' (0-100), 'formatting_score' (0-100), "
-            "'strengths' (list of strings), 'weaknesses' (list of strings), "
-            "'improvements' (list of detailed suggestions), 'action_verb_rating' (str)."
-        )
+        # 1. Deterministic Local Dynamic Analysis
+        dynamic_data = analyze_resume_dynamically(resume_text)
 
-        user_prompt = f"Resume Content:\n{resume_text}"
+        # 2. LLM Optional Enhancement
+        system_prompt = (
+            "You are an expert Resume Intelligence Analyst. Polish the resume audit findings into JSON format with keys: "
+            "'overall_score' (int), 'impact_score' (int), 'formatting_score' (int), 'strengths' (list), "
+            "'weaknesses' (list), 'improvements' (list), 'action_verb_rating' (str)."
+        )
+        user_prompt = f"Resume Content:\n{resume_text}\nDynamic Analysis Metrics:\n{dynamic_data}"
         llm_response = await self.call_llm(system_prompt, user_prompt)
 
-        fallback = {
-            "overall_score": 84,
-            "impact_score": 80,
-            "formatting_score": 88,
-            "strengths": [
-                "Clean technical skills organization across languages and frameworks",
-                "Solid project section featuring modern stack (React, Node.js, MongoDB)",
-                "Relevant education background with notable coursework listed"
-            ],
-            "weaknesses": [
-                "Bullet points could incorporate more quantified business impact (e.g. % performance increase, revenue saved)",
-                "Action verbs in experience bullet points feel slightly repetitive",
-                "Summary section is missing a clear personal value proposition"
-            ],
-            "improvements": [
-                "Quantify bullet points with STAR format metrics (e.g. 'Optimized SQL queries by 35%, reducing latency to 120ms')",
-                "Elevate bullet openings using high-impact verbs: 'Architected', 'Spearheaded', 'Engineered', 'Orchestrated'",
-                "Add a 2-line Professional Summary tailored to target engineering roles"
-            ],
-            "action_verb_rating": "Strong (78% high-impact verb frequency)"
-        }
+        output = self.parse_json_safely(llm_response, dynamic_data)
+        
+        # Enforce deterministic scores from dynamic engine
+        output["overall_score"] = dynamic_data["overall_score"]
+        output["impact_score"] = dynamic_data["impact_score"]
+        output["formatting_score"] = dynamic_data["formatting_score"]
+        output["extracted_skills"] = dynamic_data["extracted_skills"]
 
-        output = self.parse_json_safely(llm_response, fallback)
+        if memory:
+            memory.resume_analysis = output
+            memory.log_step(self.agent_id, "Completed dynamic resume analysis", {"score": output["overall_score"]})
+
         return {
             "agent_id": self.agent_id,
             "agent_name": self.name,

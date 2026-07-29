@@ -1,5 +1,6 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.agents.base_agent import BaseAgent
+from app.nlp import compute_ats_optimization
 
 class ATSOptimizationAgent(BaseAgent):
     def __init__(self):
@@ -10,46 +11,39 @@ class ATSOptimizationAgent(BaseAgent):
             icon="CheckCircle"
         )
 
-    async def run(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        resume_text = inputs.get("resume_text", "")
-        job_desc = inputs.get("job_description_text", "") or inputs.get("prompt", "")
+    async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
+        resume_text = inputs.get("resume_text", "") or (memory.resume_text if memory else "")
+        job_desc = inputs.get("job_description_text", "") or (memory.job_description_text if memory else "")
 
         reasoning_steps = [
-            "Extracted hard & soft keywords from target Job Description",
-            "Cross-referenced resume vocabulary against ATS scanner rules",
-            "Generated ATS compliance score and bullet point optimizations"
+            "Extracted keywords from target Job Description",
+            "Executed TF-IDF Cosine Similarity & Jaccard overlap matrix",
+            "Dynamically calculated ATS score and matched vs missing keyword lists"
         ]
 
-        system_prompt = (
-            "You are an ATS (Applicant Tracking System) Scanner Expert. Compare the resume text against the job description. "
-            "Return JSON with keys: 'match_score' (0-100), 'ats_compatibility' (str), 'matched_keywords' (list), "
-            "'missing_keywords' (list), 'formatting_warnings' (list), 'bullet_optimizations' (list of dicts with 'original' and 'optimized')."
-        )
+        # 1. Deterministic Local Dynamic Matcher
+        dynamic_data = compute_ats_optimization(resume_text, job_desc)
 
-        user_prompt = f"Resume:\n{resume_text}\n\nJob Description:\n{job_desc}"
+        # 2. LLM Optional Enhancement
+        system_prompt = (
+            "You are an ATS Scanner Expert. Refine ATS optimization findings into JSON with keys: "
+            "'match_score' (int), 'ats_compatibility' (str), 'matched_keywords' (list), 'missing_keywords' (list), "
+            "'formatting_warnings' (list), 'bullet_optimizations' (list of dicts with 'original' and 'optimized')."
+        )
+        user_prompt = f"Resume:\n{resume_text}\nJob Description:\n{job_desc}\nDynamic Match Results:\n{dynamic_data}"
         llm_response = await self.call_llm(system_prompt, user_prompt)
 
-        fallback = {
-            "match_score": 82,
-            "ats_compatibility": "High (91% ATS Pass Probability)",
-            "matched_keywords": ["TypeScript", "React", "Python", "REST API", "Git", "Docker", "CI/CD", "Agile"],
-            "missing_keywords": ["Kubernetes", "GraphQL", "Microservices Architecture", "Redis", "Unit Testing"],
-            "formatting_warnings": [
-                "Ensure document uses standard fonts (Arial/Calibri) and simple single-column layout for ATS parser safety"
-            ],
-            "bullet_optimizations": [
-                {
-                    "original": "Built frontend features using React and TypeScript for campus web app.",
-                    "optimized": "Engineered responsive frontend UI components using React and TypeScript, boosting user engagement by 40%."
-                },
-                {
-                    "original": "Worked on backend APIs with Python and FastAPI.",
-                    "optimized": "Architected high-throughput REST APIs using FastAPI and Python, handling 10,000+ daily student requests."
-                }
-            ]
-        }
+        output = self.parse_json_safely(llm_response, dynamic_data)
 
-        output = self.parse_json_safely(llm_response, fallback)
+        # Enforce mathematical dynamic scores and extracted keyword sets
+        output["match_score"] = dynamic_data["match_score"]
+        output["matched_keywords"] = dynamic_data["matched_keywords"]
+        output["missing_keywords"] = dynamic_data["missing_keywords"]
+
+        if memory:
+            memory.ats_optimization = output
+            memory.log_step(self.agent_id, "Completed dynamic ATS optimization audit", {"match_score": output["match_score"]})
+
         return {
             "agent_id": self.agent_id,
             "agent_name": self.name,
