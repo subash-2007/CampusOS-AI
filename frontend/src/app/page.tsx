@@ -21,7 +21,10 @@ import {
   ArrowRight,
   Shield,
   Layers,
-  ChevronRight
+  ChevronRight,
+  Upload,
+  Cpu,
+  Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -52,7 +55,7 @@ export default function LandingPage() {
       <div className="absolute top-1/3 left-10 w-[500px] h-[350px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Header Navigation */}
-      <header className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between relative z-10">
+      <header className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between relative z-10 border-b border-slate-800/60">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-purple-cyan-gradient p-0.5 shadow-glow-purple flex items-center justify-center">
             <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
@@ -64,41 +67,41 @@ export default function LandingPage() {
 
         <div className="flex items-center gap-4">
           <Link href="/login">
-            <Button variant="ghost">Sign In</Button>
+            <Button variant="ghost">Login</Button>
           </Link>
-          <Link href="/dashboard">
+          <Link href="/signup">
             <Button variant="primary" icon={<ArrowRight className="w-4 h-4" />}>
-              Launch Copilot
+              Get Started
             </Button>
           </Link>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-5xl mx-auto px-6 pt-16 pb-24 text-center relative z-10">
+      <section className="max-w-5xl mx-auto px-6 pt-16 pb-20 text-center relative z-10">
         <Badge variant="purple" className="mb-6 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider shadow-glow-purple">
           <Sparkles className="w-3.5 h-3.5 mr-1.5 text-cyanAccent inline" />
-          Autonomous 14-Agent Multi-AI Architecture
+          Autonomous 14-Agent Multi-AI Recruitment System
         </Badge>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
           Supercharge Your Career with <br />
-          <span className="text-gradient">14 Specialized AI Agents</span>
+          <span className="text-gradient">14 Autonomous AI Agents</span>
         </h1>
 
         <p className="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed font-normal">
-          CampusOS AI coordinates 14 autonomous agents to parse resumes, benchmark ATS compliance, simulate technical interviews, generate 30-60-90 day roadmaps, and land your dream tech role.
+          CampusOS AI coordinates 14 specialized AI agents governed by a Supervisor Agent to parse resumes, benchmark ATS compliance, simulate technical interviews, generate 30-60-90 day roadmaps, and land your dream tech role.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link href="/dashboard">
+          <Link href="/signup">
             <Button variant="primary" size="lg" icon={<Sparkles className="w-5 h-5" />}>
-              Enter AI Dashboard
+              Get Started Free
             </Button>
           </Link>
-          <Link href="/dashboard/chat">
+          <Link href="/login">
             <Button variant="outline" size="lg" icon={<Bot className="w-5 h-5 text-cyanAccent" />}>
-              Try AI Command Center
+              Sign In to Dashboard
             </Button>
           </Link>
         </div>
@@ -107,20 +110,87 @@ export default function LandingPage() {
         <div className="mt-14 pt-8 border-t border-slate-800/80 grid grid-cols-2 md:grid-cols-4 gap-4 text-slate-400 text-xs font-medium">
           <div className="flex items-center justify-center gap-2">
             <Shield className="w-4 h-4 text-purple-400" />
-            <span>FastAPI + MongoDB Engine</span>
+            <span>FastAPI + MongoDB Persistence</span>
           </div>
           <div className="flex items-center justify-center gap-2">
             <Layers className="w-4 h-4 text-cyan-400" />
-            <span>14 Autonomous Agents</span>
+            <span>14 Autonomous AI Agents</span>
           </div>
           <div className="flex items-center justify-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
-            <span>ATS Resume Parser</span>
+            <span>TF-IDF ATS Match Engine</span>
           </div>
           <div className="flex items-center justify-center gap-2">
             <Send className="w-4 h-4 text-amber-400" />
-            <span>Instant PDF Reports</span>
+            <span>Instant Dynamic PDF Audit</span>
           </div>
+        </div>
+      </section>
+
+      {/* How CampusOS AI Works - 4 Step Journey */}
+      <section className="max-w-7xl mx-auto px-6 py-16 relative z-10 border-t border-b border-slate-800/60 bg-slate-950/40">
+        <div className="text-center mb-14">
+          <Badge variant="cyan" className="mb-3">Simple 4-Step Process</Badge>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            How <span className="text-gradient">CampusOS AI</span> Works
+          </h2>
+          <p className="text-slate-400 max-w-2xl mx-auto text-sm">
+            From resume upload to career audit report in under 30 seconds.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="p-6 border-purple-500/30 space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold">
+              1
+            </div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Upload className="w-4 h-4 text-purple-400" />
+              <span>Upload Inputs</span>
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Upload your Resume (PDF/DOCX) and paste your target Job Description text with role & company details.
+            </p>
+          </Card>
+
+          <Card className="p-6 border-cyan-500/30 space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold">
+              2
+            </div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-cyan-400" />
+              <span>Supervisor Dispatch</span>
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Supervisor Agent parses user requirements, constructs an execution plan, and routes data through shared memory.
+            </p>
+          </Card>
+
+          <Card className="p-6 border-emerald-500/30 space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
+              3
+            </div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Bot className="w-4 h-4 text-emerald-400" />
+              <span>14-Agent Execution</span>
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              All 14 agents analyze ATS match rates, skill gap differentials, technical questions, roadmaps, and market trends.
+            </p>
+          </Card>
+
+          <Card className="p-6 border-amber-500/30 space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
+              4
+            </div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Award className="w-4 h-4 text-amber-400" />
+              <span>Dashboard & PDF</span>
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              View expandable agent output cards, readiness scores, and download a complete PDF Career Audit Report.
+            </p>
+          </Card>
         </div>
       </section>
 
@@ -169,11 +239,18 @@ export default function LandingPage() {
           <p className="text-slate-300 text-sm max-w-xl mx-auto mb-8">
             Access all 14 AI agents, upload your resume, benchmark job descriptions, and download detailed career audit reports.
           </p>
-          <Link href="/dashboard">
-            <Button variant="primary" size="lg" icon={<Sparkles className="w-5 h-5" />}>
-              Launch CampusOS AI Now
-            </Button>
-          </Link>
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/signup">
+              <Button variant="primary" size="lg" icon={<Sparkles className="w-5 h-5" />}>
+                Get Started Now
+              </Button>
+            </Link>
+            <Link href="/login">
+              <Button variant="outline" size="lg">
+                Login to Account
+              </Button>
+            </Link>
+          </div>
         </Card>
       </section>
     </div>

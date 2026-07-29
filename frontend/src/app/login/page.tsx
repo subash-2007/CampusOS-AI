@@ -1,19 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Sparkles, ArrowRight, Lock, Mail, UserCheck } from 'lucide-react';
+import { Sparkles, ArrowRight, Lock, Mail, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('demo@campusos.ai');
-  const [password, setPassword] = useState('password123');
+  const searchParams = useSearchParams();
+  const registered = searchParams.get('registered');
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    if (registered === 'true') {
+      setSuccessMsg('Account registered successfully! Please enter your credentials to sign in.');
+    }
+  }, [registered]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,17 +33,7 @@ export default function LoginPage() {
       await api.login(email, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError('Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    try {
-      await api.login('demo@campusos.ai', 'password123');
-      router.push('/dashboard');
+      setError(err?.response?.data?.detail || 'Invalid email or password. Try demo@campusos.ai / password123.');
     } finally {
       setLoading(false);
     }
@@ -50,11 +50,18 @@ export default function LoginPage() {
               <Sparkles className="w-6 h-6 text-cyanAccent animate-pulse" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-white">Welcome Back to CampusOS</h1>
+          <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
           <p className="text-xs text-slate-400 mt-1">Sign in to access your 14 AI Career Agents</p>
         </div>
 
         <Card className="p-8 border-purple-500/30">
+          {successMsg && (
+            <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
               {error}
@@ -71,14 +78,17 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm"
-                  placeholder="student@university.edu"
+                  placeholder="student@campusos.ai"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-300">Password</label>
+                <a href="#" className="text-xs text-purple-400 hover:underline font-medium">Forgot password?</a>
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
@@ -100,30 +110,14 @@ export default function LoginPage() {
               disabled={loading}
               icon={<ArrowRight className="w-4 h-4" />}
             >
-              {loading ? 'Authenticating...' : 'Sign In'}
+              {loading ? 'Authenticating...' : 'Sign In to Dashboard'}
             </Button>
           </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-slate-900 px-3 text-slate-400">OR</span></div>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            className="w-full"
-            onClick={handleDemoLogin}
-            icon={<UserCheck className="w-4 h-4 text-emerald-400" />}
-          >
-            Instant Demo Access
-          </Button>
 
           <p className="text-xs text-center text-slate-400 mt-6">
             Don't have an account?{' '}
             <Link href="/signup" className="text-purple-400 hover:underline font-medium">
-              Sign up
+              Create an account
             </Link>
           </p>
         </Card>

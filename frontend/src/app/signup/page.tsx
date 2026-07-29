@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Sparkles, ArrowRight, Lock, Mail, User, Briefcase } from 'lucide-react';
+import { Sparkles, ArrowRight, Lock, Mail, User, Briefcase, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
@@ -31,7 +31,8 @@ export default function SignupPage() {
         experience,
         career_goal: `Become ${targetRole}`
       });
-      router.push('/dashboard');
+      // Redirect to Login Page after registration
+      router.push('/login?registered=true');
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
@@ -143,7 +144,7 @@ export default function SignupPage() {
               disabled={loading}
               icon={<ArrowRight className="w-4 h-4" />}
             >
-              {loading ? 'Creating Account...' : 'Get Started'}
+              {loading ? 'Registering Account...' : 'Register & Proceed to Login'}
             </Button>
           </form>
 
