@@ -1,19 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Send, Sparkles, Copy, Check, Mail, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
+import { UserProfile } from '@/lib/types';
 
 export default function CommunicationStudioPage() {
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [commType, setCommType] = useState('cold_email');
   const [company, setCompany] = useState('Stripe / Tech Unicorn');
   const [role, setRole] = useState('Engineering Manager');
   const [loading, setLoading] = useState(false);
   const [outreachData, setOutreachData] = useState<any>(null);
   const [copiedKey, setCopiedKey] = useState('');
+
+  useEffect(() => {
+    api.getMe().then((u) => setUser(u)).catch(() => null);
+  }, []);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -37,9 +43,10 @@ export default function CommunicationStudioPage() {
     setTimeout(() => setCopiedKey(''), 2000);
   };
 
+  const candidateName = user?.name || user?.full_name || 'Candidate';
   const data = outreachData || {
     subject_line: `Full-Stack Engineer with Next.js/FastAPI experience - Passionate about ${company}'s Engineering Growth`,
-    body_text: `Hi ${role},\n\nI’ve been following ${company}’s impressive engineering work, particularly your focus on scalable web products. As a Software Engineer specializing in Next.js, TypeScript, and FastAPI backends, I recently built a full-stack platform processing concurrent data with 99.8% uptime.\n\nI’d love to briefly connect for 10 minutes to learn more about upcoming engineering initiatives on your team.\n\nBest regards,\nAlex Mercer`,
+    body_text: `Hi ${role},\n\nI’ve been following ${company}’s impressive engineering work, particularly your focus on scalable web products. As a Software Engineer specializing in Next.js, TypeScript, and FastAPI backends, I recently built a full-stack platform processing concurrent data with 99.8% uptime.\n\nI’d love to briefly connect for 10 minutes to learn more about upcoming engineering initiatives on your team.\n\nBest regards,\n${candidateName}`,
     linkedin_inmail: `Hi! Inspired by ${company}'s tech stack. I'm a Full Stack Engineer (Next.js/FastAPI/Python) eager to contribute to high-impact projects. Would love to connect!`,
     salary_negotiation_script: `Thank you so much for extending this offer to join ${company}! Based on my full-stack skillset and market benchmark data for this role, I was hoping we could explore aligning the base compensation to $X. I am extremely enthusiastic about joining the team.`
   };

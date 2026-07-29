@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile } from '@/lib/types';
 import { api } from '@/lib/api';
-import { Bot, User, Bell, Sparkles, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { downloadReportPDF } from '@/lib/pdf';
 
@@ -11,13 +11,17 @@ export const Header: React.FC<{ title?: string }> = ({ title = 'Dashboard' }) =>
   const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    api.getMe().then((u) => setUser(u));
+    api.getMe().then((u) => setUser(u)).catch(() => null);
   }, []);
 
   const handleQuickDownloadPDF = async () => {
-    const report = await api.generateReport('', user?.target_role || 'Full Stack Engineer');
+    const report = await api.generateReport('', user?.target_role || 'Full Stack Software Engineer');
     downloadReportPDF(report);
   };
+
+  const displayName = user?.name || user?.full_name || 'Candidate';
+  const displayRole = user?.target_role || '';
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <header className="h-16 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-20">
@@ -43,11 +47,11 @@ export const Header: React.FC<{ title?: string }> = ({ title = 'Dashboard' }) =>
 
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-purple-300 font-semibold text-xs shadow-glow-purple">
-            {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'A'}
+            {initial}
           </div>
           <div className="hidden md:block text-left">
-            <p className="text-xs font-semibold text-slate-100">{user?.full_name || 'Alex Mercer'}</p>
-            <p className="text-[10px] text-slate-400">{user?.target_role || 'Full Stack Engineer'}</p>
+            <p className="text-xs font-semibold text-slate-100">{displayName}</p>
+            {displayRole && <p className="text-[10px] text-slate-400">{displayRole}</p>}
           </div>
         </div>
       </div>
