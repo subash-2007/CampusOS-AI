@@ -1,0 +1,6 @@
+# Department 109: Procurement Purchasing and Vendor Contracts
+Comprehensive operational management and intelligence for Procurement Purchasing and Vendor Contracts.
+## 10-Agent Architecture
+Deterministic(7): PurchaseOrderVolumeComplianceAuditorAgent, DiverseVendorMWBEParticipationMeterAgent, CompetitiveBiddingRFPComplianceAuditorAgent, VendorPerformanceSLAAuditorAgent, ProcurementCostSavingsMeterAgent, PCardProgramAuditorAgent, ProcurementVendorContractsScorerAgent
+Reasoning(2): StrategicProcurementNarrativeAgent, ProcurementOperationsPlannerAgent
+Orchestrator(1): ProcurementVendorContractsOrchestratorAgent

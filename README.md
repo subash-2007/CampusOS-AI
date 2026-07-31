@@ -5,11 +5,11 @@
 ![Next.js 14](https://img.shields.io/badge/Frontend-Next.js_14_TypeScript-000000?style=for-the-badge)
 ![MongoDB](https://img.shields.io/badge/Database-MongoDB_Compass-47A248?style=for-the-badge)
 
-CampusOS AI is an enterprise-grade full-stack web application designed to empower students and job seekers with **14 specialized AI agents**. Built with Next.js (React + TypeScript + Tailwind CSS) on the frontend, FastAPI (Python) on the backend, MongoDB as the database, and JWT authentication.
+CampusOS AI is an enterprise-grade full-stack web application designed to empower students and higher education institutions with **111 Independent Departments** housing **1,111 specialized AI agents**. Built with Next.js (React + TypeScript + Tailwind CSS) on the frontend, FastAPI (Python) on the backend, MongoDB as the database, and JWT authentication.
 
 ---
 
-## 🤖 14 Specialized AI Agents Architecture
+## 🤖 111 Departments & 1,111 Specialized AI Agents Architecture
 
 1. **Career Orchestrator Agent**: Master intelligence routing queries, coordinating multi-agent workflows, and synthesizing career advice.
 2. **Resume Intelligence Agent**: Evaluates resume structure, formatting, impact metrics, action verb density, and strengths/weaknesses.
@@ -54,7 +54,7 @@ CampusOS/
 
 ---
 
-## 🚀 Quick Setup & Installation Guide
+H## 🚀 Quick Setup & Installation Guide
 
 ### Prerequisites
 - Node.js (v18+) & npm
@@ -72,8 +72,7 @@ cd backend
 python -m venv venv
 # Windows:
 .\venv\Scripts\activate
-# Mac/Linux:
-source venv/bin/activate
+
 
 # Install dependencies
 pip install -r requirements.txt

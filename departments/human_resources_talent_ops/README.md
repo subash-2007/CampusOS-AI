@@ -1,0 +1,6 @@
+# Department 110: Campus Human Resources and Talent Operations
+Comprehensive operational management and intelligence for Campus Human Resources and Talent Operations.
+## 10-Agent Architecture
+Deterministic(7): FacultyStaffRecruitmentTimeFillMeterAgent, EmployeeRetentionTurnoverAuditorAgent, BenefitsCompensationAdministrationAuditorAgent, EmployeePerformanceReviewCycleMeterAgent, StaffProfessionalDevelopmentTrainingMeterAgent, TitleIXEqualOpportunityComplianceAuditorAgent, HumanResourcesTalentOpsScorerAgent
+Reasoning(2): StrategicHRNarrativeAgent, HROperationsPlannerAgent
+Orchestrator(1): HumanResourcesTalentOpsOrchestratorAgent

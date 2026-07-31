@@ -50,7 +50,7 @@ export default function ReportsPage() {
             <span>AI Reports & PDF Export Center</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Synthesizes multi-dimensional insights from all 14 AI agents into a formal downloadable candidate audit report.
+            Synthesizes multi-dimensional insights from all 28 AI agents into a formal downloadable candidate audit report.
           </p>
         </div>
 
@@ -69,7 +69,7 @@ export default function ReportsPage() {
         <Card className="border-purple-500/40 p-8 space-y-6 bg-gradient-to-r from-purple-950/40 via-slate-900 to-slate-950">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
             <div>
-              <Badge variant="purple" className="mb-2">14-Agent Master Audit</Badge>
+              <Badge variant="purple" className="mb-2">28-Agent Master Audit</Badge>
               <h2 className="text-2xl font-extrabold text-white">Full Career Intelligence Report</h2>
               <p className="text-xs text-slate-400 mt-1">
                 Report ID: {report.report_id} | Generated: {new Date(report.generated_at).toLocaleDateString()}

@@ -1,0 +1,6 @@
+# Department 066: Disability Services & Accommodations
+Student accommodation letters, extended time exam proctoring SLAs, assistive technology software utilization, physical campus route accessibility, digital lecture captioning, and disability support grants.
+## 10-Agent Architecture
+Deterministic(7): StudentAccommodationRegistrationMeterAgent, ExamProctoringAccommodationAuditorAgent, AssistiveTechnologyUtilizationMeterAgent, PhysicalCampusAccessibilityAuditorAgent, DigitalCourseMaterialAccessibilityAuditorAgent, DisabilityGrantFinancialAidAuditorAgent, DisabilityServicesAccommodationsScorerAgent
+Reasoning(2): StrategicDisabilityServicesNarrativeAgent, AccommodationPlannerAgent
+Orchestrator(1): DisabilityServicesAccommodationsOrchestratorAgent

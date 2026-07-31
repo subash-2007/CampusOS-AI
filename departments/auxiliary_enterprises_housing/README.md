@@ -1,0 +1,6 @@
+# Department 108: Auxiliary Enterprises and Housing Operations
+Comprehensive operational management and intelligence for Auxiliary Enterprises and Housing Operations.
+## 10-Agent Architecture
+Deterministic(7): CampusHousingOccupancyRateMeterAgent, CampusDiningMealPlanRevenueAuditorAgent, CampusBookstoreRetailOperationsAuditorAgent, ConferenceEventServicesRevenueMeterAgent, CampusVendingLaundryConcessionAuditorAgent, FacilityMaintenanceWorkOrderTurnaroundMeterAgent, AuxiliaryEnterprisesHousingScorerAgent
+Reasoning(2): StrategicAuxiliaryNarrativeAgent, AuxiliaryOperationsPlannerAgent
+Orchestrator(1): AuxiliaryEnterprisesHousingOrchestratorAgent

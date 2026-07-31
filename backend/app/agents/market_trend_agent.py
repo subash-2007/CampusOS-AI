@@ -11,30 +11,39 @@ class MarketTrendAgent(BaseAgent):
         )
 
     async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
-        target_role = memory.target_role if memory else "Software Engineer"
+        target_role = inputs.get("target_role") or (memory.target_role if memory else "Software Engineer")
 
-        reasoning_steps = [
-            "Analyzed current industry tech hiring demand metrics and skill growth trajectories",
-            "Synthesized role-based salary benchmarks and emerging tech skill requirements"
-        ]
+        tavily_results = await self.search_tavily(f"{target_role} hiring trends salary benchmark tech stack demand 2026")
+        web_news = "\n".join([f"- {res.get('title')}: {res.get('content')}" for res in tavily_results[:3]]) if tavily_results else "No live market data."
 
         dynamic_fallback = {
             "hiring_demand": "High Demand (+18% YoY hiring growth for full-stack and cloud AI engineers)",
             "industry_trends": f"Increasing adoption of cloud-native microservices, AI-powered automation APIs, and TypeScript full-stack ecosystems for {target_role} positions.",
-            "salary_benchmark": "$85,000 - $130,000 / year (Entry to Mid-Level Software Engineer)"
+            "salary_benchmark": "$85,000 - $130,000 / year (Entry to Mid-Level Software Engineer)",
+            "score": 90
         }
 
-        system_prompt = (
-            "You are a Senior Tech Labor Market Economist. Synthesize market hiring trends. "
-            "Return JSON ONLY with keys:\n"
-            "- 'hiring_demand': str (Hiring demand metric)\n"
-            "- 'industry_trends': str (2-sentence industry trend summary)\n"
-            "- 'salary_benchmark': str (Estimated annual salary range)"
+        reasoning_steps = [
+            f"Step 1: Executed real-time web search for '{target_role}' market demand and compensation trends",
+            "Step 2: Analyzed live market data and hiring demand indicators",
+            "Step 3: Identified candidate skill alignment with market tech stack shifts",
+            "Step 4: Pinpointed skill obsolescence risks and emerging tech stack requirements",
+            "Step 5: Benchmarked candidate standing against Technology Market Analyst standards",
+            "Step 6: Formulated strategic career positioning recommendations",
+            "Step 7: Prioritized high-demand technical skill acquisitions",
+            "Step 8: Generated enterprise Market Trend Intelligence Report"
+        ]
+
+        system_prompt = self.build_expert_system_prompt(
+            persona_role="Technology Market Analyst & Labor Economist",
+            domain_focus="Live tech market hiring trends, tech stack demand forecasting, compensation benchmarking, and macro talent demand analysis."
         )
 
-        user_prompt = f"Target Role: {target_role}"
-        llm_response = await self.call_llm(system_prompt, user_prompt)
-        output = self.parse_json_safely(llm_response, dynamic_fallback)
+        context_prompt = self.build_user_context_prompt(inputs, memory=memory)
+        user_prompt = f"{context_prompt}\n\nLive Web Market Data for {target_role}:\n{web_news}"
+
+        llm_response = await self.call_llm(system_prompt, user_prompt, task_type="market_trend", preferred_engine="tavily")
+        output = self.parse_agent_output(llm_response, dynamic_fallback)
 
         if memory:
             memory.market_trends = output

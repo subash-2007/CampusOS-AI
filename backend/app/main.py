@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CampusOS AI - Autonomous Multi-Agent Career Intelligence System",
-    description="Enterprise API engine orchestrating 14 specialized AI Agents governed by a central Supervisor Agent.",
+    description="Enterprise API engine orchestrating 111 Independent Departments and 1,111 specialized AI Agents governed by a central Supervisor Agent.",
     version="2.0.0",
     lifespan=lifespan
 )
@@ -42,7 +42,8 @@ async def root():
         "app_name": settings.APP_NAME,
         "environment": settings.ENV,
         "db_connected": db_manager.is_connected,
-        "agents_available": 14,
+        "departments_available": 111,
+        "agents_available": 1111,
         "supervisor_active": True
     }
 

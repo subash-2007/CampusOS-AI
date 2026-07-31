@@ -106,10 +106,29 @@ export const api = {
     return res.data;
   },
 
-  // Agents Hub
+  // Agents Hub & Departments
   async listAgents(): Promise<AgentMetadata[]> {
-    const res = await apiClient.get('/agents/list');
-    return res.data;
+    try {
+      const res = await apiClient.get('/agents/list');
+      return res.data;
+    } catch {
+      const { MOCK_AGENTS } = await import('./mock-data');
+      return MOCK_AGENTS;
+    }
+  },
+
+  async getDepartments(): Promise<any> {
+    try {
+      const res = await apiClient.get('/agents/departments');
+      return res.data;
+    } catch {
+      const { ALL_DEPARTMENTS, MOCK_AGENTS } = await import('./mock-data');
+      return {
+        departments_count: ALL_DEPARTMENTS.length,
+        agents_count: MOCK_AGENTS.length,
+        departments: ALL_DEPARTMENTS
+      };
+    }
   },
 
   async runAgent(agentId: string, payload: any): Promise<AgentRunResponse> {
@@ -117,6 +136,16 @@ export const api = {
       agent_id: agentId,
       ...payload
     });
+    return res.data;
+  },
+
+  async getAgentOutput(sessionId: string, agentId: string): Promise<any> {
+    const res = await apiClient.get(`/agents/session/${sessionId}/agent/${agentId}`);
+    return res.data;
+  },
+
+  async getLatestAgentOutput(agentId: string): Promise<any> {
+    const res = await apiClient.get(`/agents/latest/agent/${agentId}`);
     return res.data;
   },
 

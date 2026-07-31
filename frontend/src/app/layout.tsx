@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 export const metadata: Metadata = {
-  title: 'CampusOS AI - Production Multi-Agent Career Platform',
-  description: 'Enterprise AI Career Copilot coordinating 14 specialized agents for resume parsing, ATS scoring, interview prep, and career roadmap generation.',
+  title: 'CampusOS AI - Enterprise 111-Department Multi-Agent Intelligence Platform',
+  description: 'Enterprise AI Career & Higher Education Copilot coordinating 111 Independent Departments and 1,111 specialized AI agents for resume parsing, ATS scoring, interview prep, and career roadmap generation.',
 };
 
 export default function RootLayout({
@@ -12,9 +13,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-background text-slate-100 min-h-screen font-sans antialiased">
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className="bg-background text-foreground min-h-screen font-sans antialiased">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

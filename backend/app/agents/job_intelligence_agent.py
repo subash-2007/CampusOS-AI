@@ -14,12 +14,6 @@ class JobIntelligenceAgent(BaseAgent):
     async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
         jd_text = inputs.get("job_description_text", "") or (memory.job_description_text if memory else "")
         target_role = inputs.get("target_role", "") or (memory.target_role if memory else "Software Engineer")
-
-        reasoning_steps = [
-            "Parsed Job Description body for tech stack requirements",
-            "Extracted domain expectations, team structure signals, and seniority level"
-        ]
-
         extracted_tech = extract_skills_from_text(jd_text)
 
         dynamic_fallback = {
@@ -30,21 +24,34 @@ class JobIntelligenceAgent(BaseAgent):
                 "Collaborate with product managers and engineers to deliver features",
                 "Write clean, unit-tested, performant code"
             ],
-            "required_technologies": extracted_tech or ["Python", "FastAPI", "React", "TypeScript", "SQL"]
+            "required_technologies": extracted_tech or ["Python", "FastAPI", "React", "TypeScript", "SQL"],
+            "score": 90
         }
 
-        system_prompt = (
-            "You are a Technical Job Market Analyst. Deconstruct the Job Description into specific requirements. "
-            "Return JSON ONLY with keys:\n"
-            "- 'target_role': str\n"
-            "- 'seniority_level': str (e.g. Entry Level, Mid Level, Senior)\n"
-            "- 'role_expectations': list of 3 specific job responsibilities\n"
-            "- 'required_technologies': list of strings (technologies/frameworks specified in JD)"
+        reasoning_steps = [
+            "Step 1: Analyzed full candidate resume text",
+            "Step 2: Deconstructed target Job Description to identify primary & implicit technical demands",
+            "Step 3: Identified candidate technical alignment strengths",
+            "Step 4: Pinpointed missing domain tools, frameworks, and architecture expectations",
+            "Step 5: Compared candidate profile against Senior Technical Recruiter role benchmarks",
+            "Step 6: Formulated strategic recommendations to demonstrate role mastery",
+            "Step 7: Prioritized high-impact job preparation steps",
+            "Step 8: Produced comprehensive Job Intelligence Consulting Report"
+        ]
+
+        system_prompt = self.build_expert_system_prompt(
+            persona_role="Senior Technical Recruiter",
+            domain_focus="Job description deconstruction, required tech stack analysis, seniority level calibration, and implicit role expectations."
         )
 
-        user_prompt = f"Target Role: {target_role}\nJob Description:\n{jd_text}"
-        llm_response = await self.call_llm(system_prompt, user_prompt)
-        output = self.parse_json_safely(llm_response, dynamic_fallback)
+        user_prompt = self.build_user_context_prompt(inputs, memory=memory)
+        llm_response = await self.call_llm(system_prompt, user_prompt, task_type="job_intelligence", preferred_engine="gemini")
+        output = self.parse_agent_output(llm_response, dynamic_fallback)
+
+        if not output.get("required_technologies"):
+            output["required_technologies"] = extracted_tech or ["Python", "FastAPI", "React", "TypeScript"]
+        if not output.get("target_role"):
+            output["target_role"] = target_role
 
         if memory:
             memory.job_analysis = output

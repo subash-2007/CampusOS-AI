@@ -31,6 +31,15 @@ async def list_agents():
     return agent_registry.list_agents()
 
 
+@router.get("/departments")
+async def list_departments():
+    return {
+        "departments_count": len(agent_registry.list_departments()),
+        "agents_count": len(agent_registry.list_agents()),
+        "departments": agent_registry.list_departments()
+    }
+
+
 @router.post("/run-analysis")
 async def run_multi_agent_analysis(
     req: RunAnalysisRequest,
@@ -116,8 +125,122 @@ async def get_analysis_result(
     if not report:
         report = await reports_col.find_one({"report_id": analysis_id})
     if not report:
+        report = await reports_col.find_one({"session_id": analysis_id})
+    if not report:
         raise HTTPException(status_code=404, detail="Analysis result not found.")
     return report
+
+
+def _normalize_agent_keys(agent_id: str) -> list:
+    """Returns all possible database key representations for a given agent_id slug."""
+    clean = agent_id.replace("-", "_")
+    keys = [agent_id, clean]
+    synonyms = {
+        "skill_gap": "skill_gap_intelligence",
+        "skill_gap_intelligence": "skill_gap",
+        "interview": "interview_intelligence",
+        "interview_intelligence": "interview",
+        "portfolio": "portfolio_intelligence",
+        "portfolio_intelligence": "portfolio",
+        "communication": "communication_intelligence",
+        "communication_intelligence": "communication",
+        "memory": "memory_personalization",
+        "memory_personalization": "memory",
+        "supervisor": "supervisor_evaluation",
+        "supervisor_evaluation": "supervisor"
+    }
+    if clean in synonyms:
+        keys.append(synonyms[clean])
+    return list(dict.fromkeys(keys))
+
+
+@router.get("/session/{session_id}/agent/{agent_id}")
+async def get_session_agent_output(
+    session_id: str,
+    agent_id: str,
+    mongo=Depends(get_mongodb)
+):
+    """Fetch specific agent output from MongoDB agent_outputs collection by session_id + agent_id."""
+    outputs_col = mongo.get_collection("agent_outputs")
+    possible_keys = _normalize_agent_keys(agent_id)
+    
+    output_doc = await outputs_col.find_one({"session_id": session_id, "agent_id": {"$in": possible_keys}})
+    if not output_doc:
+        output_doc = await outputs_col.find_one({"agent_id": {"$in": possible_keys}})
+    if not output_doc:
+        # Fallback to report document
+        reports_col = mongo.get_collection("career_reports")
+        rep = await reports_col.find_one({"session_id": session_id})
+        if rep and "agents" in rep:
+            for k in possible_keys:
+                if k in rep["agents"]:
+                    return {
+                        "session_id": session_id,
+                        "agent_id": agent_id,
+                        "response": rep["agents"][k],
+                        "status": "completed"
+                    }
+        raise HTTPException(status_code=404, detail=f"Output for agent '{agent_id}' not found in session '{session_id}'.")
+    output_doc["_id"] = str(output_doc["_id"])
+    return output_doc
+
+
+@router.get("/latest/agent/{agent_id}")
+async def get_latest_agent_output(
+    agent_id: str,
+    authorization: Optional[str] = Header(None),
+    mongo=Depends(get_mongodb)
+):
+    """Fetch the latest output for a given agent_id for the current logged-in user."""
+    user_id = "guest_user"
+    if authorization and authorization.startswith("Bearer "):
+        payload = decode_access_token(authorization.split(" ")[1])
+        if payload:
+            user_id = payload.get("sub", "guest_user")
+
+    outputs_col = mongo.get_collection("agent_outputs")
+    possible_keys = _normalize_agent_keys(agent_id)
+    output_doc = None
+    try:
+        output_doc = await outputs_col.find_one({"agent_id": {"$in": possible_keys}}, sort=[("timestamp", -1)])
+    except TypeError:
+        # Fallback for InMemoryCollection or test mocks
+        cursor = outputs_col.find({"agent_id": {"$in": possible_keys}})
+        if hasattr(cursor, "to_list"):
+            docs = await cursor.to_list(length=100)
+        elif hasattr(cursor, "__await__"):
+            docs = await cursor
+        else:
+            docs = list(cursor)
+        if docs:
+            docs = sorted(docs, key=lambda x: str(x.get("timestamp", "")), reverse=True)
+            output_doc = docs[0]
+
+    if not output_doc:
+        reports_col = mongo.get_collection("career_reports")
+        rep = None
+        try:
+            rep = await reports_col.find_one({"user_id": user_id}, sort=[("created_at", -1)])
+        except TypeError:
+            rep = await reports_col.find_one({"user_id": user_id})
+        if not rep:
+            try:
+                rep = await reports_col.find_one({}, sort=[("created_at", -1)])
+            except TypeError:
+                rep = await reports_col.find_one({})
+
+        if rep and "agents" in rep:
+            for k in possible_keys:
+                if k in rep["agents"]:
+                    return {
+                        "session_id": rep.get("session_id", "active_session"),
+                        "agent_id": agent_id,
+                        "response": rep["agents"][k],
+                        "status": "completed"
+                    }
+        raise HTTPException(status_code=404, detail=f"No output found for agent '{agent_id}'.")
+    output_doc["_id"] = str(output_doc["_id"])
+    return output_doc
 
 
 @router.post("/run/{agent_id}")
@@ -126,6 +249,7 @@ async def run_single_agent(agent_id: str, request_data: Dict[str, Any]):
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found.")
 
+    tool_trace = await agent.execute_autonomous_tools(request_data)
     res = await agent.run(request_data)
     now = datetime.now(timezone.utc).isoformat()
 
@@ -134,6 +258,10 @@ async def run_single_agent(agent_id: str, request_data: Dict[str, Any]):
         "agent_name": agent.name,
         "status": "success",
         "timestamp": now,
+        "goal": getattr(agent, "description", "Autonomous agentic analysis"),
+        "tools_used": tool_trace.get("tools_used", ["LLM Reasoning Engine"]),
+        "decisions_made": tool_trace.get("decisions_made", []),
+        "confidence_score": tool_trace.get("confidence_score", 90),
         "reasoning_steps": res.get("reasoning_steps", []),
-        "output": res.get("output", {})
+        "output": res.get("output", res)
     }

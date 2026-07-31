@@ -1,0 +1,6 @@
+# Department 105: Community and Civic Engagement
+Comprehensive operational management and intelligence for Community and Civic Engagement.
+## 10-Agent Architecture
+Deterministic(7): ServiceLearningCourseEnrollmentMeterAgent, AmericorpsVolunteerProgramMeterAgent, CivicLeadershipVoterRegistrationMeterAgent, CommunityPartnershipMOUAuditorAgent, SocialEntrepreneurshipImpactMeterAgent, CommunityEngagementResearchScholarshipAuditorAgent, CommunityCivicEngagementScorerAgent
+Reasoning(2): StrategicCivicNarrativeAgent, CivicOperationsPlannerAgent
+Orchestrator(1): CommunityCivicEngagementOrchestratorAgent

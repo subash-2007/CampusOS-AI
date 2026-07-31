@@ -34,7 +34,7 @@ export default function ChatPage() {
     {
       sender: 'career_orchestrator',
       agent_id: 'career_orchestrator',
-      text: 'Hello! I am your **Career Orchestrator Agent**. I coordinate all 14 specialized AI agents to help you optimize your resume, pass ATS scanners, prepare for technical interviews, and land your target role. How can we assist you today?',
+      text: 'Hello! I am your **Career Orchestrator Agent**. I coordinate all 111 departments and 1,111 specialized AI agents to help you optimize your resume, pass ATS scanners, prepare for technical interviews, and land your target role. How can we assist you today?',
       timestamp: new Date().toLocaleTimeString(),
       reasoning: [
         'Initialized CampusOS multi-agent environment',

@@ -1,0 +1,6 @@
+# Department 106: Alumni Advancement and Endowment Management
+Comprehensive operational management and intelligence for Alumni Advancement and Endowment Management.
+## 10-Agent Architecture
+Deterministic(7): EndowmentAssetPerformanceAuditorAgent, CapitalCampaignFundraisingMeterAgent, AlumniGivingParticipationRateMeterAgent, PlannedGivingEstateBequestAuditorAgent, CorporateFoundationGrantsAuditorAgent, AdvancementCRMDonorStewardshipMeterAgent, AlumniAdvancementEndowmentScorerAgent
+Reasoning(2): StrategicAdvancementNarrativeAgent, AdvancementOperationsPlannerAgent
+Orchestrator(1): AlumniAdvancementEndowmentOrchestratorAgent

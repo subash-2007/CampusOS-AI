@@ -1,0 +1,1 @@
+"""dept_110 tests init"""

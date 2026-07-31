@@ -20,8 +20,19 @@ export interface TokenResponse {
 export interface AgentMetadata {
   id: string;
   name: string;
+  type?: string;
   description: string;
   icon: string;
+}
+
+export interface DepartmentMetadata {
+  id: string;
+  name: string;
+  dirname: string;
+  agents_count: number;
+  tier?: string;
+  description?: string;
+  agents: AgentMetadata[];
 }
 
 export interface AgentRunResponse {

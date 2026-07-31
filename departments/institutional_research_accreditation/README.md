@@ -1,0 +1,6 @@
+# Department 096: Institutional Research & Accreditation
+IPEDS federal compliance reporting accuracy, SACSCOC regional accreditation standards met, graduation & retention rates, SLO program assessment completion cycles, faculty terminal-degree credentials, and strategic plan institutional effectiveness dashboards.
+## 10-Agent Architecture
+Deterministic(7): IPEDSFederalComplianceReportingAuditorAgent, RegionalAccreditationSACSSELFStudyAuditorAgent, GraduationRetentionRateTrackingMeterAgent, ProgramOutcomesAssessmentCycleAuditorAgent, FacultyQualificationsCredentialAuditorAgent, InstitutionalEffectivenessDataAuditorAgent, InstitutionalResearchAccreditationScorerAgent
+Reasoning(2): StrategicResearchNarrativeAgent, AccreditationCompliancePlannerAgent
+Orchestrator(1): InstitutionalResearchAccreditationOrchestratorAgent

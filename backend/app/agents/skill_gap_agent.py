@@ -12,43 +12,47 @@ class SkillGapAgent(BaseAgent):
 
     async def run(self, inputs: Dict[str, Any], memory: Optional[Any] = None) -> Dict[str, Any]:
         candidate_skills = memory.get_candidate_skills() if memory else []
-        missing_skills = memory.get_missing_skills() if memory else []
-        target_role = memory.target_role if memory else "Software Engineer"
-
-        reasoning_steps = [
-            "Cross-referenced candidate skill inventory against job requirements",
-            "Identified missing core technical competencies and prioritized learning impact"
-        ]
+        missing_skills = memory.get_missing_skills() if memory else ["AWS", "Docker", "Redis", "System Design"]
+        target_role = inputs.get("target_role") or (memory.target_role if memory else "Software Engineer")
 
         dynamic_fallback = {
             "overall_readiness_pct": max(60, 100 - (len(missing_skills) * 6)),
-            "missing_skills": missing_skills if missing_skills else ["AWS", "Docker", "Redis", "GraphQL"],
+            "score": max(60, 100 - (len(missing_skills) * 6)),
+            "missing_skills": missing_skills,
             "priority": "High Priority",
             "learning_plan": [
-                "Week 1: Complete hands-on AWS & Docker fundamentals tutorial",
-                "Week 2: Build a microservice caching layer using Redis",
-                "Week 3: Integrate GraphQL query API into full-stack application",
-                "Week 4: Deploy end-to-end containerized application to cloud"
+                "Week 1: Complete hands-on AWS & Docker containerization labs",
+                "Week 2: Engineer a microservices caching layer using Redis and FastAPI",
+                "Week 3: Implement distributed logging, telemetry, and system design patterns",
+                "Week 4: Deploy end-to-end containerized application with automated CI/CD pipeline"
             ]
         }
 
-        system_prompt = (
-            "You are a Technical Upskilling Architect. Compare candidate skills vs required skills and construct a 4-week learning plan. "
-            "Return JSON ONLY with keys:\n"
-            "- 'overall_readiness_pct': int (0-100)\n"
-            "- 'missing_skills': list of strings\n"
-            "- 'priority': str ('High', 'Medium', 'Low')\n"
-            "- 'learning_plan': list of 4 weekly concrete learning steps"
+        reasoning_steps = [
+            "Step 1: Analyzed complete candidate resume skill inventory",
+            "Step 2: Cross-referenced against target Job Description required technical stack",
+            "Step 3: Identified candidate technical proficiencies and strengths",
+            "Step 4: Formulated skill gap differential matrix and missing technical competencies",
+            "Step 5: Benchmarked candidate readiness against Technical Learning Consultant standards",
+            "Step 6: Designed 4-week prioritized learning pathways with hands-on lab milestones",
+            "Step 7: Prioritized critical skill gap remediations by career impact",
+            "Step 8: Generated enterprise Skill Gap Consulting Report"
+        ]
+
+        system_prompt = self.build_expert_system_prompt(
+            persona_role="Technical Learning Consultant",
+            domain_focus="Skill differential gap analysis, proficiency matrix calculation, and 4-week prioritized learning pathway design."
         )
 
-        user_prompt = (
-            f"Target Role: {target_role}\n"
-            f"Candidate Skills: {candidate_skills}\n"
-            f"Missing Skills: {missing_skills}"
-        )
+        user_prompt = self.build_user_context_prompt(inputs, memory=memory)
+        llm_response = await self.call_llm(system_prompt, user_prompt, task_type="skill_gap_intelligence", preferred_engine="anthropic")
+        output = self.parse_agent_output(llm_response, dynamic_fallback)
 
-        llm_response = await self.call_llm(system_prompt, user_prompt)
-        output = self.parse_json_safely(llm_response, dynamic_fallback)
+        readiness_val = output.get("score") or output.get("overall_readiness_pct") or dynamic_fallback["overall_readiness_pct"]
+        output["overall_readiness_pct"] = readiness_val
+        output["score"] = readiness_val
+        if not output.get("missing_skills"):
+            output["missing_skills"] = missing_skills
 
         if memory:
             memory.skill_gap_analysis = output

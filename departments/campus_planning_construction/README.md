@@ -1,0 +1,6 @@
+# Department 104: Campus Planning and Capital Construction
+Comprehensive operational management and intelligence for Campus Planning and Capital Construction.
+## 10-Agent Architecture
+Deterministic(7): CapitalProjectBudgetCompletionAuditorAgent, LEEDGreenBuildingCertificationMeterAgent, CampusMasterPlanMilestoneMeterAgent, SpaceUtilizationClassroomLabAuditorAgent, DeferredMaintenanceBacklogAuditorAgent, CampusAccessibilityUniversalDesignAuditorAgent, CampusPlanningConstructionScorerAgent
+Reasoning(2): StrategicPlanningNarrativeAgent, PlanningOperationsPlannerAgent
+Orchestrator(1): CampusPlanningConstructionOrchestratorAgent

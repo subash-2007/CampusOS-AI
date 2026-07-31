@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Sparkles, ArrowRight, Lock, Mail, User, Briefcase, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ArrowRight, Lock, Mail, User, Briefcase, Target } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [targetRole, setTargetRole] = useState('Full Stack Software Engineer');
   const [experience, setExperience] = useState('Entry Level / Student');
+  const [careerGoal, setCareerGoal] = useState('Land a role as Full Stack Software Engineer');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,7 +30,7 @@ export default function SignupPage() {
         password,
         target_role: targetRole,
         experience,
-        career_goal: `Become ${targetRole}`
+        career_goal: careerGoal || `Land a role as ${targetRole}`
       });
       // Redirect to Login Page after registration
       router.push('/login?registered=true');
@@ -52,7 +53,7 @@ export default function SignupPage() {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-white">Create Your Account</h1>
-          <p className="text-xs text-slate-400 mt-1">Unlock 14 specialized AI career agents</p>
+          <p className="text-xs text-slate-400 mt-1">Unlock 28 specialized AI career agents</p>
         </div>
 
         <Card className="p-8 border-cyan-500/30">
@@ -72,7 +73,7 @@ export default function SignupPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm"
-                  placeholder="Alex Mercer"
+                  placeholder="Enter your full name"
                   required
                 />
               </div>
@@ -87,7 +88,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm"
-                  placeholder="alex@university.edu"
+                  placeholder="name@company.com"
                   required
                 />
               </div>
@@ -100,9 +101,29 @@ export default function SignupPage() {
                 <input
                   type="text"
                   value={targetRole}
-                  onChange={(e) => setTargetRole(e.target.value)}
+                  onChange={(e) => {
+                    setTargetRole(e.target.value);
+                    if (!careerGoal || careerGoal.startsWith('Land a role as')) {
+                      setCareerGoal(`Land a role as ${e.target.value}`);
+                    }
+                  }}
                   className="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm"
                   placeholder="Full Stack Developer, Data Scientist..."
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Career Goal</label>
+              <div className="relative">
+                <Target className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                <input
+                  type="text"
+                  value={careerGoal}
+                  onChange={(e) => setCareerGoal(e.target.value)}
+                  className="w-full glass-input rounded-xl py-2.5 pl-10 pr-4 text-sm"
+                  placeholder="e.g. Land a Senior Dev role at top tech firm"
                   required
                 />
               </div>

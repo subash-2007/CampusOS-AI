@@ -3,20 +3,28 @@
 import React, { useEffect, useState } from 'react';
 import { UserProfile } from '@/lib/types';
 import { api } from '@/lib/api';
-import { Download } from 'lucide-react';
+import { Download, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { downloadReportPDF } from '@/lib/pdf';
+import { useTheme } from 'next-themes';
 
 export const Header: React.FC<{ title?: string }> = ({ title = 'Dashboard' }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     api.getMe().then((u) => setUser(u)).catch(() => null);
   }, []);
 
   const handleQuickDownloadPDF = async () => {
     const report = await api.generateReport('', user?.target_role || 'Full Stack Software Engineer');
     downloadReportPDF(report);
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
   const displayName = user?.name || user?.full_name || 'Candidate';
@@ -29,11 +37,22 @@ export const Header: React.FC<{ title?: string }> = ({ title = 'Dashboard' }) =>
         <h2 className="text-xl font-bold text-white tracking-wide">{title}</h2>
         <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          <span>14 AI Agents Active</span>
+          <span>28 AI Agents Active</span>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Dark / Light Theme Switcher */}
+        {mounted && (
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-xl border border-slate-800 bg-slate-800/40 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+            title="Toggle Dark / Light Mode"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-purple-400" />}
+          </button>
+        )}
+
         <Button
           variant="outline"
           size="sm"

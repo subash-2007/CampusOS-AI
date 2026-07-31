@@ -1,22 +1,22 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
 
 class UserRegister(BaseModel):
     name: str
-    email: EmailStr
+    email: str
     password: str
     target_role: Optional[str] = "Software Engineer"
     experience: Optional[str] = "Entry Level / Student"
     career_goal: Optional[str] = "Land a high-impact software engineering role"
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 class UserProfile(BaseModel):
     id: str
     name: str
-    email: EmailStr
+    email: str
     target_role: str
     experience: str
     career_goal: Optional[str] = "Software Engineer"
